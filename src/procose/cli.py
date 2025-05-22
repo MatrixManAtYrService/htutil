@@ -80,19 +80,6 @@ def run_command_with_display(command):
         header.append(f"{cmd_str}", style="bold blue")
         header.append(" • ")
         header.append(f"pid: {process.pid if 'process' in locals() else 'N/A'}")
-        header.append("\n")
-        
-        # Status line
-        status = Text()
-        if exit_code is None:
-            status.append("running", style="yellow bold")
-        else:
-            status.append("finished", style="green bold")
-        
-        if exit_code is not None:
-            status.append(" • ")
-            style = "green" if exit_code == 0 else "red"
-            status.append(f"code: {exit_code}", style=style)
         
         # Format stdout
         stdout_text = Text("stdout: ")
@@ -114,18 +101,30 @@ def run_command_with_display(command):
         else:
             stderr_text.append("(no output)")
         
-        # Format duration (at the bottom)
-        duration_text = Text(f"duration: {format_duration(elapsed_time)}")
+        # Status line (at the bottom)
+        status = Text()
+        if exit_code is None:
+            status.append("running", style="yellow bold")
+        else:
+            status.append("finished", style="green bold")
+        
+        status.append(" • ")
+        status.append(f"duration: {format_duration(elapsed_time)}")
+        
+        if exit_code is not None:
+            status.append(" • ")
+            style = "green" if exit_code == 0 else "red"
+            status.append(f"code: {exit_code}", style=style)
         
         # Combine elements
-        renderables = [header, status, stdout_text]
+        renderables = [header, stdout_text]
         
         # Only include stderr if it has content or it's the final display
         if stderr_lines or final:
             renderables.append(stderr_text)
         
-        # Add duration at the bottom
-        renderables.append(duration_text)
+        # Add status at the bottom
+        renderables.append(status)
         
         return VerticalLayout(*renderables)
     

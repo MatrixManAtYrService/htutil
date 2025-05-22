@@ -13,8 +13,18 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/procose"]
+packages = ["src/procose", "src/ht_util"]
 
 [project.scripts]
 procose = "procose.cli:main"
 testapp = "procose.testapp:main"
+controlled_test_app = "procose.controlled_test_app:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0"
+]
