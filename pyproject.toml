@@ -5,6 +5,7 @@ description = "Syntactic sugar for python subprocesses"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "ansi2html>=1.9.2",
     "psutil>=7.0.0",
     "rich>=13.0.0",
 ]
@@ -24,6 +25,12 @@ controlled_test_app = "procose.controlled_test_app:main"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+    "structlog>=25.3.0",
+]
 
 [project.optional-dependencies]
 test = [

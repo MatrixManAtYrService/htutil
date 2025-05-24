@@ -3,6 +3,15 @@ revision = 2
 requires-python = ">=3.12"
 
 [[package]]
+name = "ansi2html"
+version = "1.9.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/4b/d5/e3546dcd5e4a9566f4ed8708df5853e83ca627461a5b048a861c6f8e7a26/ansi2html-1.9.2.tar.gz", hash = "sha256:3453bf87535d37b827b05245faaa756dbab4ec3d69925e352b6319c3c955c0a5", size = 44300, upload-time = "2024-06-22T17:33:23.964Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bd/71/aee71b836e9ee2741d5694b80d74bfc7c8cd5dbdf7a9f3035fcf80d792b1/ansi2html-1.9.2-py3-none-any.whl", hash = "sha256:dccb75aa95fb018e5d299be2b45f802952377abfdce0504c17a6ee6ef0a420c5", size = 17614, upload-time = "2024-06-22T17:33:21.852Z" },
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -64,6 +73,7 @@ name = "procose"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "ansi2html" },
     { name = "psutil" },
     { name = "rich" },
 ]
@@ -73,13 +83,26 @@ test = [
     { name = "pytest" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "structlog" },
+]
+
 [package.metadata]
 requires-dist = [
+    { name = "ansi2html", specifier = ">=1.9.2" },
     { name = "psutil", specifier = ">=7.0.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0" },
     { name = "rich", specifier = ">=13.0.0" },
 ]
 provides-extras = ["test"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.3.5" },
+    { name = "structlog", specifier = ">=25.3.0" },
+]
 
 [[package]]
 name = "psutil"
@@ -131,4 +154,13 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a1/53/830aa4c3066a8ab0ae9a9955976fb770fe9c6102117c8ec4ab3ea62d89e8/rich-14.0.0.tar.gz", hash = "sha256:82f1bc23a6a21ebca4ae0c45af9bdbc492ed20231dcb63f297d6d1021a9d5725", size = 224078, upload-time = "2025-03-30T14:15:14.23Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0d/9b/63f4c7ebc259242c89b3acafdb37b41d1185c07ff0011164674e9076b491/rich-14.0.0-py3-none-any.whl", hash = "sha256:1c9491e1951aac09caffd42f448ee3d04e58923ffe14993f6e83068dc395d7e0", size = 243229, upload-time = "2025-03-30T14:15:12.283Z" },
+]
+
+[[package]]
+name = "structlog"
+version = "25.3.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ff/6a/b0b6d440e429d2267076c4819300d9929563b1da959cf1f68afbcd69fe45/structlog-25.3.0.tar.gz", hash = "sha256:8dab497e6f6ca962abad0c283c46744185e0c9ba900db52a423cb6db99f7abeb", size = 1367514, upload-time = "2025-04-25T16:00:39.167Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f5/52/7a2c7a317b254af857464da3d60a0d3730c44f912f8c510c76a738a207fd/structlog-25.3.0-py3-none-any.whl", hash = "sha256:a341f5524004c158498c3127eecded091eb67d3a611e7a3093deca30db06e172", size = 68240, upload-time = "2025-04-25T16:00:37.295Z" },
 ]

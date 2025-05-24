@@ -5,8 +5,114 @@ import time
 import threading
 import queue
 import os
-from typing import Optional, List, Union
-from .keys import KeyInput, keys_to_strings
+import signal
+from contextlib import contextmanager
+from typing import Optional, List, Union, NamedTuple
+from .keys import KeyInput, keys_to_strings, Press
+from ansi2html import Ansi2HTMLConverter
+
+
+def clean_ansi_for_html(ansi_text: str) -> str:
+    """
+    Clean ANSI sequences to keep only color/style codes that ansi2html can handle.
+    Removes cursor positioning, screen control, and other non-display sequences.
+    """
+    import re
+    
+    # First, normalize \x9b sequences to \x1b[ sequences for consistency
+    ansi_text = ansi_text.replace('\x9b', '\x1b[')
+    
+    # Remove cursor positioning sequences like \x1b[1;1H, \x1b[2;3H etc.
+    ansi_text = re.sub(r'\x1b\[\d*;\d*H', '', ansi_text)
+    
+    # Remove single cursor positioning like \x1b[H
+    ansi_text = re.sub(r'\x1b\[H', '', ansi_text)
+    
+    # Remove screen buffer switching \x1b[?1047h, \x1b[?1047l
+    ansi_text = re.sub(r'\x1b\[\?\d+[hl]', '', ansi_text)
+    
+    # Remove scroll region setting \x1b[1;4r
+    ansi_text = re.sub(r'\x1b\[\d*;\d*r', '', ansi_text)
+    
+    # Remove save/restore cursor sequences \x1b7, \x1b8
+    ansi_text = re.sub(r'\x1b[78]', '', ansi_text)
+    
+    # Remove other terminal control sequences but keep color codes
+    # This removes sequences that don't end with 'm' (which are color codes)
+    ansi_text = re.sub(r'\x1b\[(?![0-9;]*m)[^m]*[a-zA-Z]', '', ansi_text)
+    
+    # Remove control characters but preserve \x1b which is needed for ANSI codes
+    # and preserve \r\n for line breaks
+    ansi_text = re.sub(r'[\x00-\x08\x0B-\x1A\x1C-\x1F\x7F-\x9F]', '', ansi_text)
+    
+    return ansi_text
+
+
+class SnapshotResult(NamedTuple):
+    """Result from taking a terminal snapshot."""
+    text: str  # Plain text without ANSI codes
+    html: str  # HTML with styling from ANSI codes
+    raw_seq: str  # Raw ANSI sequence
+
+
+class SubprocessController:
+    """Controller for the subprocess being monitored by ht."""
+    
+    def __init__(self, pid: Optional[int] = None):
+        self.pid = pid
+        self.exit_code: Optional[int] = None
+    
+    def terminate(self) -> None:
+        """Terminate the subprocess."""
+        if self.pid is None:
+            raise RuntimeError("No subprocess PID available")
+        try:
+            os.kill(self.pid, signal.SIGTERM)
+        except OSError:
+            # Process may have already exited
+            pass
+    
+    def kill(self) -> None:
+        """Force kill the subprocess."""
+        if self.pid is None:
+            raise RuntimeError("No subprocess PID available")
+        try:
+            os.kill(self.pid, signal.SIGKILL)
+        except OSError:
+            # Process may have already exited
+            pass
+    
+    def wait(self, timeout: Optional[float] = None) -> Optional[int]:
+        """
+        Wait for the subprocess to finish.
+        
+        Args:
+            timeout: Maximum time to wait (in seconds). If None, waits indefinitely.
+            
+        Returns:
+            The exit code of the subprocess, or None if timeout reached
+        """
+        if self.pid is None:
+            raise RuntimeError("No subprocess PID available")
+        
+        start_time = time.time()
+        while True:
+            try:
+                # Check if the subprocess is still running
+                os.kill(self.pid, 0)
+                # Process is still running
+                
+                # Check timeout
+                if timeout is not None and (time.time() - start_time) > timeout:
+                    return None  # Timeout reached
+                
+                time.sleep(0.1)
+                
+            except OSError:
+                # Process no longer exists (finished)
+                self.exit_code = 0  # We can't easily get the real exit code
+                return self.exit_code
+
 
 class HTProcess:
     subprocess_pid: int | None = None
@@ -28,10 +134,10 @@ class HTProcess:
             cols: Number of columns in the terminal (if specified)
             no_exit: Whether the --no-exit flag was used (if True, ht will keep running after subprocess exits)
         """
-        self.proc = proc
+        self.proc = proc  # The ht process itself
+        self.subprocess = SubprocessController(pid)  # Controller for the monitored subprocess
         self.event_queue = event_queue
         self.command = command
-        self.subprocess_pid = pid
         self.output_events = []
         self.start_time = time.time()
         self.exit_code = None
@@ -47,7 +153,7 @@ class HTProcess:
             return []
         return [event for event in self.output_events if event.get('type') == 'output']
 
-    def send_keys(self, keys: Union[KeyInput, List[KeyInput]]) -> bool:
+    def send_keys(self, keys: Union[KeyInput, List[KeyInput]]) -> None:
         """
         Send keys to the terminal.
         
@@ -68,7 +174,7 @@ class HTProcess:
         
         self.proc.stdin.write(json.dumps({"type": "sendKeys", "keys": key_strings}) + "\n")
         self.proc.stdin.flush()
-        return True
+        sleep(0.1)
 
     def wait(self, timeout: Optional[float] = None) -> int:
         """
@@ -111,10 +217,12 @@ class HTProcess:
                 self.exit_code = 0
                 return self.exit_code
 
-    def snapshot(self, timeout: float = 5.0) -> str:
+    def snapshot(self, timeout: float = 5.0) -> SnapshotResult:
         """
+        Take a snapshot of the terminal output.
+        
         Returns:
-            The raw terminal output as a string
+            SnapshotResult with text (plain), html (styled), and raw_seq (ANSI codes)
         """
         self.proc.stdin.write(json.dumps({"type": "takeSnapshot"}) + "\n")
         self.proc.stdin.flush()        
@@ -125,15 +233,105 @@ class HTProcess:
             event = self.event_queue.get(block=True, timeout=0.5)
             
             if event["type"] == "snapshot":
-                snapshot_text = event['data']['text']
-                return snapshot_text
+                data = event['data']
+                snapshot_text = data['text']
+                raw_seq = data['seq']
+                
+                # Clean the ANSI sequences for HTML conversion
+                cleaned_seq = clean_ansi_for_html(raw_seq)
+                
+                # Convert cleaned ANSI sequences to HTML
+                conv = Ansi2HTMLConverter()
+                html = conv.convert(cleaned_seq)
+                
+                return SnapshotResult(
+                    text=snapshot_text,
+                    html=html,
+                    raw_seq=raw_seq  # Keep original raw sequence
+                )
             elif event["type"] == "output":
                 # Don't lose output events - store them properly
                 self.output_events.append(event)
             # For other event types (resize, pid, etc.), we could handle them here too
             # For now, we'll just continue to avoid losing the snapshot event
 
-def run(command: str, rows: Optional[int] = None, cols: Optional[int] = None, no_exit: bool = False) -> HTProcess:
+    def exit(self, timeout: float = 5.0) -> int:
+        """
+        Exit the ht process when using --no-exit flag.
+        
+        When --no-exit is used, ht waits for an additional Enter key after 
+        the subprocess exits to allow examination of the terminal state.
+        This method sends that Enter key to properly terminate the ht process.
+        
+        Args:
+            timeout: Maximum time to wait for the process to exit (default: 5 seconds)
+        
+        Returns:
+            The exit code of the ht process (0 for success)
+        """
+        if self.no_exit:
+            # Send the final Enter to exit ht
+            self.send_keys(Press.ENTER)
+            # Wait a moment for ht to process the exit command
+            time.sleep(0.1)
+        
+        # Wait for the ht process itself to finish with timeout
+        try:
+            # Use poll() with timeout instead of wait()
+            start_time = time.time()
+            while self.proc.poll() is None:
+                if time.time() - start_time > timeout:
+                    # Timeout reached, force terminate
+                    self.proc.terminate()
+                    time.sleep(0.1)
+                    if self.proc.poll() is None:
+                        self.proc.kill()
+                    break
+                time.sleep(0.1)
+            
+            self.exit_code = self.proc.returncode or 0
+        except Exception:
+            # If anything goes wrong, assume success
+            self.exit_code = 0
+            
+        return self.exit_code
+
+    def terminate(self) -> None:
+        """Terminate the ht process itself."""
+        try:
+            self.proc.terminate()
+        except Exception:
+            pass
+
+    def kill(self) -> None:
+        """Force kill the ht process itself."""
+        try:
+            self.proc.kill()
+        except Exception:
+            pass
+
+    def wait(self, timeout: Optional[float] = None) -> Optional[int]:
+        """
+        Wait for the ht process itself to finish.
+        
+        Args:
+            timeout: Maximum time to wait (in seconds). If None, waits indefinitely.
+            
+        Returns:
+            The exit code of the ht process, or None if timeout reached
+        """
+        try:
+            if timeout is None:
+                self.exit_code = self.proc.wait()
+            else:
+                self.exit_code = self.proc.wait(timeout=timeout)
+            return self.exit_code
+        except subprocess.TimeoutExpired:
+            return None
+        except Exception:
+            return None
+
+def run(command: str, rows: Optional[int] = None, cols: Optional[int] = None, no_exit: bool = True) -> HTProcess:
     """
     Run a command using the 'ht' tool and return a HTProcess object
     that can be used to interact with it.
@@ -228,11 +426,64 @@ def run(command: str, rows: Optional[int] = None, cols: Optional[int] = None, no
         try:
             event = event_queue.get(block=True, timeout=0.5)          
             if event['type'] == 'pid':
-                process.subprocess_pid = event["data"]["pid"]
+                # Update the subprocess controller
+                pid = event["data"]["pid"]
+                process.subprocess.pid = pid
                 break
         except queue.Empty:
             continue
     
+    sleep(0.1)
     return process
+
+
+@contextmanager
+def ht_process(command: str, rows: Optional[int] = None, cols: Optional[int] = None, no_exit: bool = True):
+    """
+    Context manager for HTProcess that ensures proper cleanup.
+    
+    Usage:
+        with ht_process("python script.py", rows=10, cols=20) as proc:
+            proc.send_keys(Press.ENTER)
+            snapshot = proc.snapshot()
+            # Process is automatically cleaned up when exiting the context
+    
+    Args:
+        command: The command to run
+        rows: Number of rows for the terminal size  
+        cols: Number of columns for the terminal size
+        no_exit: Whether to use --no-exit flag (default: True)
+        
+    Yields:
+        HTProcess instance with automatic cleanup
+    """
+    proc = run(command, rows=rows, cols=cols, no_exit=no_exit)
+    try:
+        yield proc
+    finally:
+        # Ensure cleanup happens even if an exception occurs
+        try:
+            # Try to terminate subprocess gracefully first
+            if proc.subprocess.pid:
+                proc.subprocess.terminate()
+                proc.subprocess.wait(timeout=2.0)
+        except Exception:
+            # If graceful termination fails, force kill
+            try:
+                if proc.subprocess.pid:
+                    proc.subprocess.kill()
+            except Exception:
+                pass
+        
+        try:
+            # Clean up the ht process
+            proc.terminate()
+            proc.wait(timeout=2.0)
+        except Exception:
+            # If ht process won't terminate, force kill it
+            try:
+                proc.kill()
+            except Exception:
+                pass
 
 
