@@ -61,8 +61,8 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1747884468,
-        "narHash": "sha256-/26TKAkup3QvUDAOKYx+pZoEfWegyQpUhgqiftdxG+E=",
+        "lastModified": 1747891842,
+        "narHash": "sha256-1Dszpr82xdn5E9HXzDMorUY9Cj835DeINFoefb/fZwU=",
         "path": "/Users/matt/src/ht",
         "type": "path"
       },

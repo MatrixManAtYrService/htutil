@@ -1,7 +1,3 @@
-"""
-Core functionality for the ht_util package.
-This module provides utilities for capturing terminal output using the ht tool.
-"""
 import subprocess
 import json
 from time import sleep
@@ -9,11 +5,8 @@ import time
 import threading
 import queue
 import os
-import signal
 from typing import Optional, List, Union
-
-# Module-level list to store output events
-output = []
+from .keys import KeyInput, keys_to_strings
 
 class HTProcess:
     subprocess_pid: int | None = None
@@ -46,20 +39,34 @@ class HTProcess:
         self.cols = cols
         self.no_exit = no_exit
 
-    def send_keys(self, keys: Union[str, List[str]]) -> bool:
+    @property
+    def output(self):
+        """Return list of output events for backward compatibility."""
+        # Debug: let's see what we actually have
+        if not self.output_events:
+            return []
+        return [event for event in self.output_events if event.get('type') == 'output']
+
+    def send_keys(self, keys: Union[KeyInput, List[KeyInput]]) -> bool:
         """
         Send keys to the terminal.
         
         Args:
-            keys: A string or list of key names to send
+            keys: A string, Press enum, or list of keys to send.
+                  Can use Press enums (e.g., Press.ENTER, Press.CTRL_C) or strings.
             
         Returns:
             True if keys were sent successfully, False otherwise
+            
+        Examples:
+            proc.send_keys(Press.ENTER)
+            proc.send_keys([Press.ENTER, Press.CTRL_C])
+            proc.send_keys("hello")
+            proc.send_keys(["hello", Press.ENTER])
         """
-        if isinstance(keys, str):
-            keys = [keys]
+        key_strings = keys_to_strings(keys)
         
-        self.proc.stdin.write(json.dumps({"type": "sendKeys", "keys": keys}) + "\n")
+        self.proc.stdin.write(json.dumps({"type": "sendKeys", "keys": key_strings}) + "\n")
         self.proc.stdin.flush()
         return True
 
@@ -104,6 +111,28 @@ class HTProcess:
                 self.exit_code = 0
                 return self.exit_code
 
+    def snapshot(self, timeout: float = 5.0) -> str:
+        """
+        Returns:
+            The raw terminal output as a string
+        """
+        self.proc.stdin.write(json.dumps({"type": "takeSnapshot"}) + "\n")
+        self.proc.stdin.flush()        
+        sleep(0.1)
+        
+        # Process events until we find the snapshot, but don't discard other events
+        while True:
+            event = self.event_queue.get(block=True, timeout=0.5)
+            
+            if event["type"] == "snapshot":
+                snapshot_text = event['data']['text']
+                return snapshot_text
+            elif event["type"] == "output":
+                # Don't lose output events - store them properly
+                self.output_events.append(event)
+            # For other event types (resize, pid, etc.), we could handle them here too
+            # For now, we'll just continue to avoid losing the snapshot event
+
 def run(command: str, rows: Optional[int] = None, cols: Optional[int] = None, no_exit: bool = False) -> HTProcess:
     """
     Run a command using the 'ht' tool and return a HTProcess object
@@ -118,10 +147,7 @@ def run(command: str, rows: Optional[int] = None, cols: Optional[int] = None, no
     Returns:
         An HTProcess instance
     """
-    # Clear the module-level output list for a fresh start
-    global output
-    output.clear()
-    
+   
     # Split the command into arguments if it's a string
     if isinstance(command, str):
         cmd_args = command.split()
@@ -146,9 +172,9 @@ def run(command: str, rows: Optional[int] = None, cols: Optional[int] = None, no
     event_queue = queue.Queue()
     
     # Create a reader thread to capture ht output
-    def reader_thread(proc, queue_obj):
+    def reader_thread(ht_proc, queue_obj, ht_process):
         while True:
-            line = proc.stdout.readline()
+            line = ht_proc.stdout.readline()
             if not line:
                 break                
             line = line.strip()
@@ -161,19 +187,15 @@ def run(command: str, rows: Optional[int] = None, cols: Optional[int] = None, no
                 
                 # Store output events separately in the process
                 if event['type'] == 'output':
-                    if hasattr(proc, 'output_events'):
-                        proc.output_events.append(event)
-                    # Also store in module-level output list
-                    global output
-                    output.append(event)
+                    ht_process.output_events.append(event)
             except json.JSONDecodeError:
                 # Check for non-JSON messages that indicate process state
                 if isinstance(line, str):
                     if "Process exited" in line:
-                        if hasattr(proc, 'subprocess') and hasattr(proc.subprocess, '_finished'):
-                            proc.subprocess._finished = True
-                            proc.subprocess.exit_code = 0  # Assume success
-                            proc._subprocess_finished = True
+                        if hasattr(ht_process, 'subprocess') and hasattr(ht_process.subprocess, '_finished'):
+                            ht_process.subprocess._finished = True
+                            ht_process.subprocess.exit_code = 0  # Assume success
+                            ht_process._subprocess_finished = True
                 
                 queue_obj.put({"type": "raw", "data": {"text": line}})
     
@@ -198,7 +220,7 @@ def run(command: str, rows: Optional[int] = None, cols: Optional[int] = None, no
     )
     
     # Start the reader thread
-    thread = threading.Thread(target=reader_thread, args=(ht_proc, event_queue), daemon=True)
+    thread = threading.Thread(target=reader_thread, args=(ht_proc, event_queue, process), daemon=True)
     thread.start()    
     # Wait briefly for the process to initialize
     start_time = time.time()
@@ -214,54 +236,3 @@ def run(command: str, rows: Optional[int] = None, cols: Optional[int] = None, no
     return process
 
 
-def snapshot(process: HTProcess, timeout: float = 5.0) -> str:
-    """
-    Take a snapshot of the terminal output for a given process.
-    This function works for both running and completed processes.
-    
-    Args:
-        process: The HTProcess instance
-        timeout: Maximum time to wait for the snapshot
-        
-    Returns:
-        The raw terminal output as a string
-    """
-    process.proc.stdin.write(json.dumps({"type": "takeSnapshot"}) + "\n")
-    process.proc.stdin.flush()        
-    sleep(0.1)
-    event = {"type": None}
-    while event["type"] != "snapshot":
-        event = process.event_queue.get(block=True, timeout=0.5)
-    snapshot_text = event['data']['text']
-    return snapshot_text
-    
-
-
-def resize_terminal(process: HTProcess, rows: int, cols: int):
-    """
-    Resize the terminal of a running process.
-    
-    Args:
-        process: The HTProcess instance
-        rows: New number of rows (height)
-        cols: New number of columns (width)
-    """
-    if process.check_if_finished():
-        return False
-    
-    process.proc.stdin.write(json.dumps({
-        "type": "resize", 
-        "rows": rows,
-        "cols": cols
-    }) + "\n")
-    process.proc.stdin.flush()
-    
-    # Update the process's stored dimensions
-    process.rows = rows
-    process.cols = cols
-    
-    return True
-
-
-# Define capture as an alias for snapshot for backward compatibility
-capture = snapshot
