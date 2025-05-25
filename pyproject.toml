@@ -8,6 +8,7 @@ dependencies = [
     "ansi2html>=1.9.2",
     "psutil>=7.0.0",
     "rich>=13.0.0",
+    "typer>=0.15.4",
 ]
 
 [build-system]
@@ -19,6 +20,7 @@ packages = ["src/procose", "src/ht_util"]
 
 [project.scripts]
 procose = "procose.cli:main"
+htutil = "ht_util.cli:cli"
 testapp = "procose.testapp:main"
 controlled_test_app = "procose.controlled_test_app:main"
 

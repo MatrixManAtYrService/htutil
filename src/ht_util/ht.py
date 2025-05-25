@@ -224,8 +224,16 @@ class HTProcess:
         Returns:
             SnapshotResult with text (plain), html (styled), and raw_seq (ANSI codes)
         """
-        self.proc.stdin.write(json.dumps({"type": "takeSnapshot"}) + "\n")
-        self.proc.stdin.flush()        
+        # Check if the ht process is still running
+        if self.proc.poll() is not None:
+            raise RuntimeError(f"ht process has exited with code {self.proc.returncode}")
+            
+        try:
+            self.proc.stdin.write(json.dumps({"type": "takeSnapshot"}) + "\n")
+            self.proc.stdin.flush()        
+        except BrokenPipeError as e:
+            raise RuntimeError(f"Cannot communicate with ht process (broken pipe). Process may have exited. Poll result: {self.proc.poll()}") from e
+            
         sleep(0.1)
         
         # Process events until we find the snapshot, but don't discard other events
@@ -257,11 +265,11 @@ class HTProcess:
 
     def exit(self, timeout: float = 5.0) -> int:
         """
-        Exit the ht process when using --no-exit flag.
+        Exit the ht process, forcefully terminating the subprocess if needed.
         
-        When --no-exit is used, ht waits for an additional Enter key after 
-        the subprocess exits to allow examination of the terminal state.
-        This method sends that Enter key to properly terminate the ht process.
+        This method ensures a reliable exit regardless of subprocess state:
+        - If subprocess is still running, it will be terminated first
+        - Then the ht process will be cleanly shut down
         
         Args:
             timeout: Maximum time to wait for the process to exit (default: 5 seconds)
@@ -269,15 +277,36 @@ class HTProcess:
         Returns:
             The exit code of the ht process (0 for success)
         """
+        
+        # Step 1: Ensure subprocess is terminated first
+        if self.subprocess.pid:
+            try:
+                # Check if subprocess is still running
+                os.kill(self.subprocess.pid, 0)
+                # If we get here, subprocess is still running - terminate it
+                self.subprocess.terminate()
+                try:
+                    self.subprocess.wait(timeout=2.0)
+                except Exception:
+                    # If graceful termination fails, force kill
+                    try:
+                        self.subprocess.kill()
+                    except Exception:
+                        pass
+            except OSError:
+                # Subprocess already dead, that's fine
+                pass
+        
+        # Step 2: Handle ht process exit
         if self.no_exit:
-            # Send the final Enter to exit ht
+            # Now that subprocess is dead, ht should be waiting for exit Enter
+            # Give it a moment to detect subprocess exit and show the prompt
+            time.sleep(0.2)
             self.send_keys(Press.ENTER)
-            # Wait a moment for ht to process the exit command
             time.sleep(0.1)
         
-        # Wait for the ht process itself to finish with timeout
+        # Step 3: Wait for the ht process itself to finish with timeout
         try:
-            # Use poll() with timeout instead of wait()
             start_time = time.time()
             while self.proc.poll() is None:
                 if time.time() - start_time > timeout:
@@ -289,7 +318,11 @@ class HTProcess:
                     break
                 time.sleep(0.1)
             
-            self.exit_code = self.proc.returncode or 0
+            self.exit_code = self.proc.returncode
+            # Normalize exit code to 0 for successful termination
+            if self.exit_code is None or self.exit_code == -15:  # SIGTERM
+                self.exit_code = 0
+                
         except Exception:
             # If anything goes wrong, assume success
             self.exit_code = 0
@@ -363,7 +396,8 @@ def run(command: str, rows: Optional[int] = None, cols: Optional[int] = None, no
     if no_exit:
         ht_cmd.append("--no-exit")
     
-    # Add the command to run
+    # Add separator and the command to run
+    ht_cmd.append("--")
     ht_cmd.extend(cmd_args)
     
     # Create a queue for events
@@ -396,6 +430,11 @@ def run(command: str, rows: Optional[int] = None, cols: Optional[int] = None, no
                             ht_process._subprocess_finished = True
                 
                 queue_obj.put({"type": "raw", "data": {"text": line}})
+    
+    # Log the exact command for debugging
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Executing ht command: {' '.join(ht_cmd)}")
     
     # Launch ht
     ht_proc = subprocess.Popen(

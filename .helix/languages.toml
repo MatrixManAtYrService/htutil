@@ -4,7 +4,7 @@ language-servers = ["ruff", "pyright"]
 
 [language.formatter]
 command = "ruff"
-args = ["format"]
+args = ["format", "--stdin-filename", "%"]
 
 [language-server]
 [language-server.pyright]

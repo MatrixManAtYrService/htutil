@@ -20,6 +20,7 @@ class Press(Enum):
     END = "End"
     PAGE_UP = "PageUp"
     PAGE_DOWN = "PageDown"
+    BACKSPACE = "Backspace"
     F1 = "F1"
     F2 = "F2"
     F3 = "F3"

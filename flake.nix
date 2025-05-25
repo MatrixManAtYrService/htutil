@@ -61,13 +61,13 @@
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             nodejs
+            vim # used by tests of htutil cli
             ruff
             python312Packages.python-lsp-ruff
             pyright
             nixpkgs-fmt
             python312
             uv
-            # Add the ht binary from the ht flake
             ht.packages.${system}.ht
           ];
         };
