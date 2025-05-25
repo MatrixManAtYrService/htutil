@@ -2,8 +2,10 @@ import os
 import subprocess
 import sys
 import tempfile
+import re
 from pathlib import Path
 from textwrap import dedent
+from typing import Union
 
 import pytest
 
@@ -16,47 +18,61 @@ else:
     env["PYTHONPATH"] = str(src_path)
 
 
-def terminal_contents(*contents: str) -> str:
+def terminal_contents(
+    actual_output: str, *expected_patterns: Union[str, re.Pattern]
+) -> bool:
     """
-    Process terminal content strings to match actual terminal output.
-    
+    Check if actual terminal output matches expected patterns.
+
     This function:
-    1. Accepts multiple content strings (useful for multiple snapshots)
-    2. Removes common leading indentation from each (like dedent)
-    3. Removes the extra leading newline added by triple-quote format
-    4. Preserves internal empty lines including intended leading empty lines
-    5. Ensures proper newlines between content blocks and at the end
+    1. Takes the actual output as the first argument
+    2. Accepts multiple expected patterns (strings or compiled regex patterns)
+    3. Processes string patterns with dedent and formatting
+    4. Creates a combined regex pattern that handles both literal strings and regex parts
+    5. Returns True if the actual output matches the combined expected pattern
     """
-    processed_parts = []
-    
-    for content in contents:
-        # Use dedent to remove common leading whitespace
-        processed = dedent(content)
-        
-        # Remove one leading newline (from triple-quote format) but preserve 
-        # any subsequent newlines that represent actual empty lines in the terminal
-        if processed.startswith('\n'):
-            processed = processed[1:]
-        
-        # Remove trailing newline for this part (we'll add them back between parts)
-        if processed.endswith('\n'):
-            processed = processed[:-1]
-            
-        processed_parts.append(processed)
-    
+    pattern_parts = []
+
+    for pattern in expected_patterns:
+        if isinstance(pattern, re.Pattern):
+            # For regex patterns, use the pattern string directly
+            pattern_str = pattern.pattern
+            # Remove the leading/trailing whitespace that dedent would remove
+            pattern_str = dedent(pattern_str)
+            if pattern_str.startswith("\n"):
+                pattern_str = pattern_str[1:]
+            if pattern_str.endswith("\n"):
+                pattern_str = pattern_str[:-1]
+            pattern_parts.append(pattern_str)
+        else:
+            # For string patterns, escape regex special characters and process with dedent
+            processed = dedent(pattern)
+
+            # Remove one leading newline (from triple-quote format)
+            if processed.startswith("\n"):
+                processed = processed[1:]
+
+            # Remove trailing newline for this part
+            if processed.endswith("\n"):
+                processed = processed[:-1]
+
+            # Escape the string for regex use
+            escaped = re.escape(processed)
+            pattern_parts.append(escaped)
+
     # Join all parts with newlines and ensure final trailing newline
-    result = '\n'.join(processed_parts)
-    if not result.endswith('\n'):
-        result = result + '\n'
-    
-    return result
+    combined_pattern = "\n".join(pattern_parts)
+    if not combined_pattern.endswith(re.escape("\n")):
+        combined_pattern = combined_pattern + re.escape("\n")
+
+    # Use regex matching with DOTALL flag to allow . to match newlines
+    return bool(re.match(combined_pattern, actual_output, re.DOTALL))
 
 
 def test_echo_hello():
     cmd = [
         *(sys.executable, "-m"),
         "ht_util.cli",
-        # *("--log-level", "DEBUG"),
         *("-r", "2"),
         *("-c", "10"),
         "--",
@@ -91,7 +107,6 @@ def test_send_keys(greeter_script):
     cmd = [
         *(sys.executable, "-m"),
         "ht_util.cli",
-        # *("--log-level", "DEBUG"),
         *("-r", "2"),
         *("-c", "10"),
         *("-k", "world,Backspace,Enter"),
@@ -104,42 +119,56 @@ def test_send_keys(greeter_script):
 
 
 def test_vim():
+    try:
+        vim_path = os.environ["HTUTIL_TEST_VIM_TARGET"]
+    except KeyError:
+        print(
+            "Please run this test in the nix devshell defined in {project_root}/nix/devshell.nix"
+            "doing so will provide a specific version of vim.\n"
+            "To do this, run `nix develop` at the repo root and then run the tests in that shell."
+        )
+        raise
+
     cmd = [
         *(sys.executable, "-m"),
         "ht_util.cli",
-        # *("--log-level", "DEBUG"),
         "--snapshot",
         *("-k", "ihello,Escape"),
-        "--snapshot", 
+        "--snapshot",
         *("-k", ":q!,Enter"),
         "--",
-        "vim"
+        vim_path,
     ]
 
     ran = subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
-    assert ran.stdout == terminal_contents(
-        """
+    assert terminal_contents(
+        ran.stdout,
+        # part of vim's opening message changes each time
+        # use a regex to exclude it from the assertion
+        re.compile(
+            """
         
-        ~
-        ~
-        ~
-        ~               VIM - Vi IMproved
-        ~
-        ~                version 9.1.1336
-        ~            by Bram Moolenaar et al.
-        ~  Vim is open source and freely distributable
-        ~
-        ~         Help poor children in Uganda!
-        ~ type  :help iccf<Enter>       for information
-        ~
-        ~ type  :q<Enter>               to exit
-        ~ type  :help<Enter>  or  <F1>  for on-line help
-        ~ type  :help version9<Enter>   for version info
-        ~
-        ~
-        ~
-                                        0,0-1         All
-        """,
+            ~
+            ~
+            ~
+            ~               VIM - Vi IMproved
+            ~
+            ~                version 9.1.1336
+            ~            by Bram Moolenaar et al.
+            ~  Vim is open source and freely distributable
+            ~
+            .*
+            .*
+            ~
+            ~ type  :q<Enter>               to exit
+            ~ type  :help<Enter>  or  <F1>  for on-line help
+            ~ type  :help version9<Enter>   for version info
+            ~
+            ~
+            ~
+                                            0,0-1         All
+        """
+        ),
         """
         hello
         ~
@@ -161,5 +190,5 @@ def test_vim():
         ~
         ~
                                         1,5           All
-        """
+        """,
     )

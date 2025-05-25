@@ -3,8 +3,16 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
+      inputs.nixpkgs-lib.follows = "nixpkgs";
+    };
 
-    flake-utils.url = "github:numtide/flake-utils";
+    git-hooks = {
+      url = "github:cachix/git-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     pyproject-nix = {
       url = "github:pyproject-nix/pyproject.nix";
@@ -27,49 +35,70 @@
     ht = {
       url = "path:/Users/matt/src/ht";
     };
-
   };
 
-  outputs = { self, nixpkgs, flake-utils, uv2nix, pyproject-nix, pyproject-build-systems, ht }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
-        };
+  outputs = inputs@{ flake-parts, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      imports = [
+        inputs.git-hooks.flakeModule
+      ];
+      
+      systems = [ 
+        "x86_64-linux" 
+        "aarch64-linux" 
+        "x86_64-darwin" 
+        "aarch64-darwin" 
+      ];
+      
+      perSystem = { config, self', inputs', system, pkgs, ... }: 
+        let
+          # Pin vim to specific version for test stability
+          htutil_test_vim_target = pkgs.vim.overrideAttrs (oldAttrs: {
+            version = "9.1.1336";
+            src = pkgs.fetchFromGitHub {
+              owner = "vim";
+              repo = "vim";
+              rev = "v9.1.1336";
+              sha256 = "sha256-fF1qRPdVzQiYH/R0PSmKR/zFVVuCtT6lPN1x1Th5SgA=";
+            };
+          });
+        in
+        {
+          devShells.default = pkgs.mkShell {
+            buildInputs = with pkgs; [
+              nodejs
+              ruff
+              python312Packages.python-lsp-ruff
+              pyright
+              nixpkgs-fmt
+              python312
+              uv
+              inputs.ht.packages.${system}.ht
+            ];
 
-        python = pkgs.python312;
-        workspace = uv2nix.lib.workspace.loadWorkspace { 
-          workspaceRoot = ./.;
-        };
+            shellHook = ''
+              export HTUTIL_TEST_VIM_TARGET="${htutil_test_vim_target}/bin/vim"
+            '';
+          };
 
-        pythonSet = (pkgs.callPackage pyproject-nix.build.packages {
-          inherit python;
-        }).overrideScope (
-          nixpkgs.lib.composeManyExtensions [
-            pyproject-build-systems.overlays.default
-            workspace.mkPyprojectOverlay { sourcePreference = "wheel"; }
-          ]
-        );
-
-        pythonEnv = pythonSet.mkVirtualEnv "procose" workspace.deps.default;
-      in
-      {
-        packages = {
-          default = pythonEnv;
+          # Configure pre-commit hooks
+          pre-commit = {
+            check.enable = true;
+            settings = {
+              hooks = {
+                # Enable ruff for Python linting and formatting
+                ruff.enable = true;
+                ruff-format.enable = true;
+                
+                # Additional useful hooks
+                nixpkgs-fmt.enable = true;
+              };
+            };
+          };
         };
-
-        devShells.default = pkgs.mkShell {
-          buildInputs = with pkgs; [
-            nodejs
-            vim # used by tests of htutil cli
-            ruff
-            python312Packages.python-lsp-ruff
-            pyright
-            nixpkgs-fmt
-            python312
-            uv
-            ht.packages.${system}.ht
-          ];
-        };
-      });
+      
+      flake = {
+        # Any flake-level attributes can go here
+      };
+    };
 }
