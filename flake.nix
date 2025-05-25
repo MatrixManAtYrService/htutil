@@ -3,7 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    
+
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
       inputs.nixpkgs-lib.follows = "nixpkgs";
@@ -42,15 +42,15 @@
       imports = [
         inputs.git-hooks.flakeModule
       ];
-      
-      systems = [ 
-        "x86_64-linux" 
-        "aarch64-linux" 
-        "x86_64-darwin" 
-        "aarch64-darwin" 
+
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
       ];
-      
-      perSystem = { config, self', inputs', system, pkgs, ... }: 
+
+      perSystem = { config, self', inputs', system, pkgs, ... }:
         let
           # Pin vim to specific version for test stability
           htutil_test_vim_target = pkgs.vim.overrideAttrs (oldAttrs: {
@@ -73,32 +73,53 @@
               nixpkgs-fmt
               python312
               uv
+              pre-commit
               inputs.ht.packages.${system}.ht
             ];
 
             shellHook = ''
               export HTUTIL_TEST_VIM_TARGET="${htutil_test_vim_target}/bin/vim"
+              ${config.pre-commit.installationScript}
             '';
           };
 
-          # Configure pre-commit hooks
           pre-commit = {
             check.enable = true;
             settings = {
               hooks = {
-                # Enable ruff for Python linting and formatting
                 ruff.enable = true;
                 ruff-format.enable = true;
-                
-                # Additional useful hooks
                 nixpkgs-fmt.enable = true;
               };
             };
           };
+
+          checks = {
+            # Run pytest using uv
+            pytest = pkgs.stdenv.mkDerivation {
+              name = "pytest-check";
+              src = ./.;
+
+              buildInputs = [
+                pkgs.uv
+                pkgs.python312
+                inputs.ht.packages.${system}.ht
+              ];
+
+              buildPhase = ''
+                export HOME=$(mktemp -d)
+                export HTUTIL_TEST_VIM_TARGET="${htutil_test_vim_target}/bin/vim"
+
+                # Run the tests
+                uv run pytest
+              '';
+
+              installPhase = ''
+                mkdir -p $out
+                echo "Tests passed" > $out/result
+              '';
+            };
+          };
         };
-      
-      flake = {
-        # Any flake-level attributes can go here
-      };
     };
 }

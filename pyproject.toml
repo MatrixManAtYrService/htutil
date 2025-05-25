@@ -1,13 +1,11 @@
 [project]
-name = "procose"
+name = "htutil"
 version = "0.1.0"
-description = "Syntactic sugar for python subprocesses"
+description = "A python wrapper around ht (a headless terminal utility)"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "ansi2html>=1.9.2",
-    "psutil>=7.0.0",
-    "rich>=13.0.0",
     "typer>=0.15.4",
 ]
 
@@ -16,13 +14,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/procose", "src/ht_util"]
+packages = ["src/ht_util"]
 
 [project.scripts]
-procose = "procose.cli:main"
 htutil = "ht_util.cli:cli"
-testapp = "procose.testapp:main"
-controlled_test_app = "procose.controlled_test_app:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -32,9 +27,4 @@ python_files = "test_*.py"
 dev = [
     "pytest>=8.3.5",
     "structlog>=25.3.0",
-]
-
-[project.optional-dependencies]
-test = [
-    "pytest>=7.0.0"
 ]

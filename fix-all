@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Simple script to run all formatters and linters
+# This works without pre-commit if needed
+
+set -e
+echo "Running all formatters and linters..."
+
+echo "1. Formatting Nix files..."
+nixpkgs-fmt flake.nix
+
+echo "2. Running ruff with auto-fix..."
+ruff check --fix src/
+
+echo "3. Formatting Python files..."
+ruff format src/
+
+echo "All auto-fixes applied!"
+echo "Note: Some ruff errors may need manual fixing"

@@ -3,11 +3,12 @@ Key definitions for ht_util - EXACTLY what ht supports, nothing more.
 This module provides a unified Press enum for all supported keys.
 Based on the key parsing logic in ht's stdio.rs file.
 """
+
 from enum import Enum
 from typing import Union, List
 
 
-class Press(Enum):    
+class Press(Enum):
     ENTER = "Enter"
     TAB = "Tab"
     SPACE = "Space"
@@ -84,15 +85,15 @@ class Press(Enum):
     CTRL_SHIFT_W = "C-W"
     CTRL_SHIFT_X = "C-X"
     CTRL_SHIFT_Y = "C-Y"
-    CTRL_SHIFT_Z = "C-Z"    
-    CTRL_AT = "C-@"          # Also equivalent to C-Space
-    CTRL_SPACE = "C-Space"   # Also equivalent to C-@
-    CTRL_LBRACKET = "C-["    # Also equivalent to Escape
+    CTRL_SHIFT_Z = "C-Z"
+    CTRL_AT = "C-@"  # Also equivalent to C-Space
+    CTRL_SPACE = "C-Space"  # Also equivalent to C-@
+    CTRL_LBRACKET = "C-["  # Also equivalent to Escape
     CTRL_BACKSLASH = "C-\\"
     CTRL_RBRACKET = "C-]"
-    CTRL_CARET = "C-^"       # Also equivalent to C-/
-    CTRL_SLASH = "C-/"       # Also equivalent to C-^
-    CTRL_MINUS = "C--"       # Also equivalent to C-_
+    CTRL_CARET = "C-^"  # Also equivalent to C-/
+    CTRL_SLASH = "C-/"  # Also equivalent to C-^
+    CTRL_MINUS = "C--"  # Also equivalent to C-_
     CTRL_UNDERSCORE = "C-_"  # Also equivalent to C--
     CTRL_LEFT = "C-Left"
     CTRL_RIGHT = "C-Right"
@@ -133,7 +134,7 @@ class Press(Enum):
     SHIFT_F9 = "S-F9"
     SHIFT_F10 = "S-F10"
     SHIFT_F11 = "S-F11"
-    SHIFT_F12 = "S-F12"    
+    SHIFT_F12 = "S-F12"
     ALT_A = "A-a"
     ALT_B = "A-b"
     ALT_C = "A-c"
@@ -224,7 +225,7 @@ class Press(Enum):
     ALT_SLASH = "A-/"
     ALT_QUESTION = "A-?"
     ALT_BACKTICK = "A-`"
-    ALT_TILDE = "A-~"    
+    ALT_TILDE = "A-~"
     ALT_LEFT = "A-Left"
     ALT_RIGHT = "A-Right"
     ALT_UP = "A-Up"
@@ -261,7 +262,7 @@ class Press(Enum):
     CTRL_ALT_SHIFT_RIGHT = "C-A-S-Right"
     CTRL_ALT_SHIFT_UP = "C-A-S-Up"
     CTRL_ALT_SHIFT_DOWN = "C-A-S-Down"
-    
+
     # ===== CARET NOTATION (alternative syntax for Control keys) =====
     # ht supports both C-a and ^a for the same keys
     CARET_A = "^a"
@@ -328,7 +329,7 @@ KeyInput = Union[Press, str]
 def key_to_string(key: KeyInput) -> str:
     if isinstance(key, str):
         return key
-    elif hasattr(key, 'value'):
+    elif hasattr(key, "value"):
         return key.value
     else:
         return str(key)
@@ -337,5 +338,5 @@ def key_to_string(key: KeyInput) -> str:
 def keys_to_strings(keys: Union[KeyInput, List[KeyInput]]) -> List[str]:
     if not isinstance(keys, list):
         keys = [keys]
-    
+
     return [key_to_string(key) for key in keys]
