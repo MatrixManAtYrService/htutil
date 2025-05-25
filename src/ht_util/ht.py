@@ -116,7 +116,7 @@ class SubprocessController:
 
 
 class HTProcess:
-    subprocess_pid: int | None = None
+    subprocess_pid: Optional[int] = None
 
     """
     A wrapper around a process started with the 'ht' tool that provides

@@ -68,10 +68,10 @@
             buildInputs = with pkgs; [
               nodejs
               ruff
-              python312Packages.python-lsp-ruff
+              python3Packages.python-lsp-ruff
               pyright
               nixpkgs-fmt
-              python312
+              python3
               uv
               pre-commit
               inputs.ht.packages.${system}.ht
@@ -102,7 +102,7 @@
 
               buildInputs = [
                 pkgs.uv
-                pkgs.python312
+                pkgs.python3
                 inputs.ht.packages.${system}.ht
               ];
 
