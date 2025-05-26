@@ -1,11 +1,13 @@
+import logging
 import os
+import re
 import subprocess
 import sys
 import tempfile
-import re
+from dataclasses import dataclass
 from pathlib import Path
 from textwrap import dedent
-from typing import Union
+from typing import List, Union
 
 import pytest
 
@@ -17,56 +19,55 @@ if "PYTHONPATH" in env:
 else:
     env["PYTHONPATH"] = str(src_path)
 
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class Pattern:
+    lines: List[Union[str, re.Pattern]]  # List of strings or compiled regex patterns
+
 
 def terminal_contents(
-    actual_output: str, *expected_patterns: Union[str, re.Pattern]
+    *, actual_snapshots: str, expected_patterns: List[Pattern]
 ) -> bool:
-    """
-    Check if actual terminal output matches expected patterns.
+    actual_lines = actual_snapshots.splitlines()
 
-    This function:
-    1. Takes the actual output as the first argument
-    2. Accepts multiple expected patterns (strings or compiled regex patterns)
-    3. Processes string patterns with dedent and formatting
-    4. Creates a combined regex pattern that handles both literal strings and regex parts
-    5. Returns True if the actual output matches the combined expected pattern
-    """
-    pattern_parts = []
+    for pattern_idx, pattern in enumerate(expected_patterns):
+        if len(actual_lines) < len(pattern.lines):
+            print(
+                f"Pattern {pattern_idx}: Not enough actual lines. Expected {len(pattern.lines)}, got {len(actual_lines)}"
+            )
+            return False
 
-    for pattern in expected_patterns:
-        if isinstance(pattern, re.Pattern):
-            # For regex patterns, use the pattern string directly
-            pattern_str = pattern.pattern
-            # Remove the leading/trailing whitespace that dedent would remove
-            pattern_str = dedent(pattern_str)
-            if pattern_str.startswith("\n"):
-                pattern_str = pattern_str[1:]
-            if pattern_str.endswith("\n"):
-                pattern_str = pattern_str[:-1]
-            pattern_parts.append(pattern_str)
-        else:
-            # For string patterns, escape regex special characters and process with dedent
-            processed = dedent(pattern)
+        # Match each line in the pattern
+        for line_idx, expected_line in enumerate(pattern.lines):
+            if line_idx >= len(actual_lines):
+                print(
+                    f"Pattern {pattern_idx}, line {line_idx}: Actual snapshot too short"
+                )
+                return False
 
-            # Remove one leading newline (from triple-quote format)
-            if processed.startswith("\n"):
-                processed = processed[1:]
+            actual_line = actual_lines[line_idx]
 
-            # Remove trailing newline for this part
-            if processed.endswith("\n"):
-                processed = processed[:-1]
+            if isinstance(expected_line, re.Pattern):
+                # This is a compiled regex pattern
+                if not expected_line.match(actual_line):
+                    print(
+                        f"Pattern {pattern_idx}, line {line_idx}: Regex {expected_line.pattern} failed to match '{actual_line}'"
+                    )
+                    return False
+            else:
+                # This is a string that should be matched exactly
+                if expected_line != actual_line:
+                    print(
+                        f"Pattern {pattern_idx}, line {line_idx}: Expected '{expected_line}', got '{actual_line}'"
+                    )
+                    return False
 
-            # Escape the string for regex use
-            escaped = re.escape(processed)
-            pattern_parts.append(escaped)
+        # Remove the matched lines from actual_lines for the next pattern
+        actual_lines = actual_lines[len(pattern.lines) :]
 
-    # Join all parts with newlines and ensure final trailing newline
-    combined_pattern = "\n".join(pattern_parts)
-    if not combined_pattern.endswith(re.escape("\n")):
-        combined_pattern = combined_pattern + re.escape("\n")
-
-    # Use regex matching with DOTALL flag to allow . to match newlines
-    return bool(re.match(combined_pattern, actual_output, re.DOTALL))
+    return True
 
 
 def test_echo_hello():
@@ -80,7 +81,30 @@ def test_echo_hello():
     ]
 
     ran = subprocess.run(cmd, capture_output=True, text=True, env=env)
-    assert ran.stdout == ("hello\n\n")
+    # Remove the separator that gets added at the end
+    expected_output = "hello\n\n"
+    actual_output = ran.stdout.replace("----\n", "")
+    assert actual_output == expected_output
+
+
+def test_keys_after_subproc_exit():
+    cmd = [
+        *(sys.executable, "-m"),
+        "ht_util.cli",
+        *("-r", "2"),
+        *("-c", "10"),
+        # echo hello will happen immediately and the subprocess will close
+        # then we'll attempt to send text anyway
+        *("-k", "world"),
+        "--",
+        *("echo", "hello"),
+    ]
+
+    ran = subprocess.run(cmd, capture_output=True, text=True, env=env)
+    # Remove the separator that gets added at the end
+    expected_output = "hello\n\n----\n"
+    assert ran.stdout == expected_output
+    print(ran.stderr)
 
 
 @pytest.fixture
@@ -115,7 +139,10 @@ def test_send_keys(greeter_script):
     ]
 
     ran = subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
-    assert ran.stdout == ("hello worl\n\n")
+    # Remove the separator that gets added at the end
+    expected_output = "hello worl\n\n"
+    actual_output = ran.stdout.replace("----\n", "")
+    assert actual_output == expected_output
 
 
 def test_vim():
@@ -141,54 +168,69 @@ def test_vim():
     ]
 
     ran = subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
+
+    snapshots = ran.stdout.split("----\n")
+    snapshots = [s for s in snapshots if s.strip()]
+    assert len(snapshots) == 2, f"Expected 2 snapshots, got {len(snapshots)}"
+
+    # Test first snapshot (vim opening screen)
     assert terminal_contents(
-        ran.stdout,
-        # part of vim's opening message changes each time
-        # use a regex to exclude it from the assertion
-        re.compile(
-            """
-        
-            ~
-            ~
-            ~
-            ~               VIM - Vi IMproved
-            ~
-            ~                version 9.1.1336
-            ~            by Bram Moolenaar et al.
-            ~  Vim is open source and freely distributable
-            ~
-            .*
-            .*
-            ~
-            ~ type  :q<Enter>               to exit
-            ~ type  :help<Enter>  or  <F1>  for on-line help
-            ~ type  :help version9<Enter>   for version info
-            ~
-            ~
-            ~
-                                            0,0-1         All
-        """
-        ),
-        """
-        hello
-        ~
-        ~
-        ~
-        ~
-        ~
-        ~
-        ~
-        ~
-        ~
-        ~
-        ~
-        ~
-        ~
-        ~
-        ~
-        ~
-        ~
-        ~
-                                        1,5           All
-        """,
+        actual_snapshots=snapshots[0],
+        expected_patterns=[
+            Pattern(
+                lines=[
+                    "",
+                    "~",
+                    "~",
+                    "~",
+                    "~               VIM - Vi IMproved",
+                    "~",
+                    "~                version 9.1.1336",
+                    "~            by Bram Moolenaar et al.",
+                    "~  Vim is open source and freely distributable",
+                    "~",
+                    re.compile(r"~.*"),  # Variable vim message line 1
+                    re.compile(r"~.*"),  # Variable vim message line 2
+                    "~",
+                    "~ type  :q<Enter>               to exit",
+                    "~ type  :help<Enter>  or  <F1>  for on-line help",
+                    "~ type  :help version9<Enter>   for version info",
+                    "~",
+                    "~",
+                    "~",
+                    "                                0,0-1         All",
+                ],
+            ),
+        ],
+    )
+
+    # Test second snapshot (after typing hello and pressing Escape)
+    assert terminal_contents(
+        actual_snapshots=snapshots[1],
+        expected_patterns=[
+            Pattern(
+                lines=[
+                    "hello",
+                    "~",
+                    "~",
+                    "~",
+                    "~",
+                    "~",
+                    "~",
+                    "~",
+                    "~",
+                    "~",
+                    "~",
+                    "~",
+                    "~",
+                    "~",
+                    "~",
+                    "~",
+                    "~",
+                    "~",
+                    "~",
+                    "                                1,5           All",
+                ],
+            ),
+        ],
     )

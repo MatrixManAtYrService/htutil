@@ -68,7 +68,7 @@
             buildInputs = with pkgs; [
               nodejs
               ruff
-              python3Packages.python-lsp-ruff
+              python3.pkgs.python-lsp-ruff
               pyright
               nixpkgs-fmt
               python3

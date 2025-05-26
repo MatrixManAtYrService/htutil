@@ -157,6 +157,7 @@ class HTProcess:
         self.rows = rows
         self.cols = cols
         self.no_exit = no_exit
+        self.subprocess_exited = False  # Track if subprocess has exited
 
     @property
     def output(self):
@@ -370,7 +371,7 @@ def run(
         cmd_args = command
 
     # Create the ht command with event subscription
-    ht_cmd = ["ht", "--subscribe", "init,snapshot,output,resize,pid"]
+    ht_cmd = ["ht", "--subscribe", "init,snapshot,output,resize,pid,exitCode"]
 
     # Add size options if specified
     if rows is not None and cols is not None:
@@ -404,10 +405,18 @@ def run(
                 # Store output events separately in the process
                 if event["type"] == "output":
                     ht_process.output_events.append(event)
+                # Track subprocess exit events
+                elif event["type"] == "exitCode":
+                    ht_process.subprocess_exited = True
+                    if hasattr(ht_process, "subprocess"):
+                        ht_process.subprocess.exit_code = event.get("data", {}).get(
+                            "exitCode", 0
+                        )
             except json.JSONDecodeError:
                 # Check for non-JSON messages that indicate process state
                 if isinstance(line, str):
                     if "Process exited" in line:
+                        ht_process.subprocess_exited = True
                         if hasattr(ht_process, "subprocess") and hasattr(
                             ht_process.subprocess, "_finished"
                         ):

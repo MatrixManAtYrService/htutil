@@ -1,75 +1,130 @@
 #!/usr/bin/env python3
-"""
-Command-line interface for ht_util.
-
-Provides a CLI wrapper around ht_util.run() that captures terminal output
-and prints it to stdout with whitespace trimmed.
-"""
-
-import sys
+import argparse
 import logging
+import sys
 import time
+from typing import List, Tuple
+
 from .ht import run
+from .keys import Press
+
+DEFAULTS = {
+    "rows": 20,
+    "cols": 50,
+    "log_level": "WARNING",
+    "delimiter": ",",
+    "sleep_after_keys": 0.05,
+    "sleep_after_start": 0.1,
+}
 
 
 def send_keys_to_process(proc, keys_str: str, delimiter: str, logger):
-    """Send a sequence of keys to the process."""
+    """
+    Send a sequence of keys to the subprocess.
+
+    If it's something like "Escape" or "C-a" or something else in keys.py send
+    the indicated key (or combination thereof). Otherwise, treat each character
+    in the string like a separate keypress.
+    """
+
     logger.debug(f"Parsing and sending keys: {keys_str}")
-    key_list = keys_str.split(delimiter)
-
-    from .keys import Press
-
-    for key_str in key_list:
+    for key_str in keys_str.split(delimiter):
         key_str = key_str.strip()
         if not key_str:
             continue
 
         logger.debug(f"Sending key: {repr(key_str)}")
 
-        # Try to find it as a Press enum value
-        special_key = None
-        for press_key in Press:
-            if press_key.value == key_str or press_key.name == key_str.upper():
-                special_key = press_key
-                break
+        # Check if subprocess has already exited
+        if hasattr(proc, "subprocess_exited") and proc.subprocess_exited:
+            logger.warning(f"Subprocess has exited, cannot send keys: {key_str}")
+            return
 
-        if special_key:
-            proc.send_keys(special_key)
-        else:
-            proc.send_keys(key_str)
+        try:
+            special_key = next(
+                (
+                    press_key
+                    for press_key in Press
+                    if press_key.value == key_str or press_key.name == key_str.upper()
+                ),
+                None,
+            )
 
-        time.sleep(0.05)
+            proc.send_keys(special_key if special_key else key_str)
+            time.sleep(DEFAULTS["sleep_after_keys"])
+        except Exception as e:
+            logger.warning(f"Failed to send keys '{key_str}': {e}")
+            return
 
 
 def take_and_print_snapshot(proc, logger):
-    """Take a snapshot and print it to stdout."""
+    """Take a snapshot of the headless terminal and print it to stdout."""
     logger.debug("Taking snapshot...")
-    snapshot = proc.snapshot()
 
-    # Print each line with trimmed whitespace to stdout
-    for line in snapshot.text.split("\n"):
-        print(line.rstrip())
+    try:
+        snapshot = proc.snapshot()
+
+        # Print each line with trimmed whitespace to stdout
+        for line in snapshot.text.split("\n"):
+            print(line.rstrip())
+
+        # Print separator after snapshot
+        print("----")
+    except RuntimeError as e:
+        if "ht process has exited" in str(e):
+            logger.warning("ht process has exited, cannot take snapshot")
+        else:
+            logger.warning(f"Failed to take snapshot: {e}")
+        # Still print the separator to maintain expected output format
+        print("----")
+    except Exception as e:
+        logger.warning(f"Failed to take snapshot: {e}")
+        # Still print the separator to maintain expected output format
+        print("----")
 
 
-def parse_interleaved_args():
+def parse_interleaved_args() -> Tuple[
+    argparse.Namespace, List[Tuple[str, str]], List[str]
+]:
     """Parse arguments allowing interleaved -k and --snapshot options."""
-    import argparse
-
-    # Basic argument parser for the simple options
     parser = argparse.ArgumentParser(
-        description="Run a command with ht terminal emulation", add_help=False
+        description="Run a command with ht terminal emulation",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python -m ht_util.cli -- echo hello
+  python -m ht_util.cli -k "hello,Enter" --snapshot -- vim
+  python -m ht_util.cli -r 30 -c 80 --snapshot -k "ihello,Escape" --snapshot -- vim
+
+The -k and --snapshot options can be used multiple times and will be processed in order.
+        """.strip(),
+    )
+
+    parser.add_argument(
+        "-r",
+        "--rows",
+        type=int,
+        default=DEFAULTS["rows"],
+        help=f"Number of terminal rows (default: {DEFAULTS['rows']})",
     )
     parser.add_argument(
-        "-r", "--rows", type=int, default=20, help="Number of terminal rows"
+        "-c",
+        "--cols",
+        type=int,
+        default=DEFAULTS["cols"],
+        help=f"Number of terminal columns (default: {DEFAULTS['cols']})",
     )
     parser.add_argument(
-        "-c", "--cols", type=int, default=50, help="Number of terminal columns"
+        "--log-level",
+        default=DEFAULTS["log_level"],
+        help=f"Log level (default: {DEFAULTS['log_level']})",
     )
-    parser.add_argument("--log-level", default="WARNING", help="Log level")
     parser.add_argument(
-        "-d", "--delimiter", default=",", help="Delimiter for parsing keys"
+        "-d",
+        "--delimiter",
+        default=DEFAULTS["delimiter"],
+        help=f"Delimiter for parsing keys (default: '{DEFAULTS['delimiter']}')",
     )
-    parser.add_argument("--help", action="store_true", help="Show help and exit")
 
     # Find the -- separator
     try:
@@ -77,32 +132,17 @@ def parse_interleaved_args():
         args_before_command = sys.argv[1:dash_dash_idx]
         command = sys.argv[dash_dash_idx + 1 :]
     except ValueError:
-        # No -- found, check if it's just a help request
-        if "--help" in sys.argv:
+        if "--help" in sys.argv or "-h" in sys.argv:
             args_before_command = sys.argv[1:]
             command = []
         else:
-            print("Error: No command specified after --", file=sys.stderr)
-            sys.exit(1)
+            parser.error("No command specified after --")
 
     # Parse basic options
     basic_args, remaining = parser.parse_known_args(args_before_command)
 
-    if basic_args.help:
-        print("""Usage: python -m ht_util.cli [OPTIONS] [-k KEYS] [--snapshot] ... -- COMMAND [ARGS...]
-
-Options:
-  -r, --rows INTEGER     Number of terminal rows [default: 10]
-  -c, --cols INTEGER     Number of terminal columns [default: 40]
-  --log-level TEXT       Log level [default: WARNING]
-  -d, --delimiter TEXT   Delimiter for parsing keys [default: ,]
-  -k TEXT                Keys to send
-  --snapshot             Take and print a snapshot
-  --help                 Show this message and exit
-
-The -k and --snapshot options can be used multiple times and will be processed in order.
-""")
-        sys.exit(0)
+    if not command and not any(arg in sys.argv for arg in ["--help", "-h"]):
+        parser.error("No command specified after --")
 
     # Parse the interleaved -k and --snapshot options
     actions = []
@@ -115,23 +155,25 @@ The -k and --snapshot options can be used multiple times and will be processed i
             actions.append(("snapshot", None))
             i += 1
         else:
-            print(f"Error: Unknown argument: {remaining[i]}", file=sys.stderr)
-            sys.exit(1)
+            parser.error(f"Unknown argument: {remaining[i]}")
 
     return basic_args, actions, command
 
 
 def main():
     """Main CLI function."""
-    basic_args, actions, command = parse_interleaved_args()
+    try:
+        basic_args, actions, command = parse_interleaved_args()
+    except SystemExit:
+        return  # argparse handled help or error
 
     if not command:
-        print("Error: No command specified after --", file=sys.stderr)
-        sys.exit(1)
+        return  # Help was shown
 
     # Set up logging
-    numeric_level = getattr(logging, basic_args.log_level.upper(), None)
-    if not isinstance(numeric_level, int):
+    try:
+        numeric_level = getattr(logging, basic_args.log_level.upper())
+    except AttributeError:
         print(f"Invalid log level: {basic_args.log_level}", file=sys.stderr)
         sys.exit(1)
 
@@ -142,24 +184,26 @@ def main():
 
     try:
         # Run the command
-        command_str = " ".join(command)
-        proc = run(command_str, rows=basic_args.rows, cols=basic_args.cols)
-        time.sleep(0.1)  # Let command start
+        proc = run(" ".join(command), rows=basic_args.rows, cols=basic_args.cols)
+        time.sleep(DEFAULTS["sleep_after_start"])  # Let command start
 
         # Process actions in order
         for action_type, action_value in actions:
             if action_type == "keys":
                 send_keys_to_process(proc, action_value, basic_args.delimiter, logger)
-                time.sleep(0.1)
+                time.sleep(DEFAULTS["sleep_after_start"])
             elif action_type == "snapshot":
                 take_and_print_snapshot(proc, logger)
 
-        # If no snapshots were taken, take one at the end
+        # Take a final snapshot if none were explicitly requested
         if not any(action_type == "snapshot" for action_type, _ in actions):
-            proc.subprocess.wait()  # Wait for completion
             take_and_print_snapshot(proc, logger)
 
-        proc.exit()
+        # Now exit the ht process cleanly (only if it's still running)
+        if proc.proc.poll() is None:
+            proc.exit()
+        else:
+            logger.debug("ht process already exited")
 
     except Exception as e:
         logger.error(f"Exception occurred: {e}")
