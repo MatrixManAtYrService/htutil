@@ -46,6 +46,10 @@ def run_nix_build(check_path: str) -> Tuple[bool, bool, str]:
         # Combine stdout and stderr for full output
         full_output = result.stderr + result.stdout
 
+        # For failed builds, always ensure we capture useful output
+        if result.returncode != 0 and not full_output.strip():
+            full_output = f"Build failed with exit code {result.returncode} but no output captured"
+
         return result.returncode == 0, is_cached, full_output
 
     except subprocess.TimeoutExpired:
@@ -83,8 +87,14 @@ def run_check(
     result_text = ""
     if success:
         result_text = get_check_result_text(check_path) or f"{check_name} - PASSED"
+    else:
+        # For failed checks, make sure we have output to show
+        if not output or not output.strip():
+            output = f"Check {check_name} failed but no detailed output available. Try running manually: nix build {check_path} --print-build-logs"
 
-    return CheckResult(check_name, check_path, success, cached, result_text)
+    return CheckResult(
+        check_name, check_path, success, cached, output if not success else result_text
+    )
 
 
 def display_check_result(
@@ -114,9 +124,16 @@ def display_check_result(
         console.print(f"\n[green]✅ {result.output}[/green]")
     else:
         console.print("[blue]🔨 EXECUTED[/blue] - Check ran and failed")
+
+        # ALWAYS show output for failed checks to help debug
         if result.output:
-            console.print("\n[dim]Error output:[/dim]")
-            console.print(result.output)
+            console.print("\n[red]❌ Build output (showing failure details):[/red]")
+            # Show the output with some formatting to make it readable
+            lines = result.output.split("\n")
+            for line in lines:
+                if line.strip():  # Skip empty lines
+                    console.print(f"[dim]│[/dim] {line}")
+
         console.print(f"\n[red]❌ {result.name} - FAILED[/red]")
 
     console.print("\n" + "=" * 50)

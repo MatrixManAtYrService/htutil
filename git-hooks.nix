@@ -1,4 +1,4 @@
-{}:
+_:
 
 {
   git-hooks.hooks = {

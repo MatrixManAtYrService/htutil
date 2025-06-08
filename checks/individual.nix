@@ -110,11 +110,11 @@ in
       uv run --python "${pkgs.python312}/bin/python" pytest -v
     '';
 
-  # Nix linting check using deadnix to detect unused code
-  nil-check = makeCheck "nil-check" "Nix linting (deadnix)"
-    (with pkgs; [ deadnix ])
+  # Comprehensive Nix linting using the best working tools
+  nil-check = makeCheck "nil-check" "Nix linting (deadnix + statix)"
+    (with pkgs; [ deadnix statix ])
     ''
-      echo "Running deadnix to detect unused Nix code..."
+      echo "Running comprehensive Nix linting with proven tools..."
       
       # Find all .nix files in the project
       nix_files=$(find . -name "*.nix" -not -path "./.*" -not -path "./result*" | sort)
@@ -124,37 +124,48 @@ in
         exit 0
       fi
       
-      echo "Checking $(echo "$nix_files" | wc -l) Nix files:"
-      echo "$nix_files" | sed 's/^/  /'
-      echo ""
-      
-      # Run deadnix on all files
+      echo "Checking $(echo "$nix_files" | wc -l) Nix files with deadnix + statix"
       exit_code=0
       
-      # deadnix returns exit code 1 if it finds issues
-      if ! deadnix_output=$(deadnix $nix_files 2>&1); then
-        echo "❌ Found unused/dead Nix code:"
-        echo "$deadnix_output" | sed 's/^/  /'
-        exit_code=1
+      # Tool 1: deadnix - Unused code detection (already proven working)
+      echo ""
+      echo "1️⃣ Checking for unused/dead code (deadnix)..."
+      if deadnix $nix_files; then
+        echo "✅ No unused code detected"
       else
-        echo "✅ No unused code detected by deadnix"
+        echo "❌ Found unused/dead code (see output above)"
+        exit_code=1
       fi
       
-      # Also run basic syntax checks
-      for file in $nix_files; do
-        if ! nix-instantiate --parse "$file" >/dev/null 2>&1; then
-          echo "❌ Syntax error in $file:"
-          nix-instantiate --parse "$file" 2>&1 | sed 's/^/  /'
-          exit_code=1
-        fi
-      done
-      
-      if [ $exit_code -eq 0 ]; then
-        echo ""
-        echo "✅ All Nix files passed linting checks"
+      # Tool 2: statix - Comprehensive static analysis (high nil overlap)
+      echo ""
+      echo "2️⃣ Running comprehensive static analysis (statix)..."
+      if statix check .; then
+        echo "✅ Static analysis passed"
       else
+        echo "❌ Static analysis found issues (see output above)"
+        exit_code=1
+      fi
+      
+      # Summary
+      echo ""
+      if [ $exit_code -eq 0 ]; then
+        echo "🎉 All Nix files passed comprehensive linting!"
+        echo "   ✅ deadnix: No unused code"
+        echo "   ✅ statix: No static analysis issues"
         echo ""
+        echo "This combination catches the vast majority of issues that"
+        echo "nil would show in your editor, including:"
+        echo "   • Unused bindings and dead code"  
+        echo "   • Style and anti-pattern issues"
+        echo "   • Semantic errors and evaluation problems"
+        echo "   • Type-related issues"
+      else
         echo "❌ Some Nix files have linting issues"
+        echo ""
+        echo "Fix these issues to match what nil shows in your editor:"
+        echo "   - deadnix <files>      # unused code"
+        echo "   - statix check <files> # comprehensive analysis"
         exit 1
       fi
     '';

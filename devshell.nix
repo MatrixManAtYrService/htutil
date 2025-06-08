@@ -23,6 +23,7 @@ pkgs.mkShell {
     nil # Nix language server
     nixd # Advanced Nix language server
     deadnix # Detects dead/unused Nix code
+    statix # Comprehensive Nix static analyzer (BEST coverage)
     python3
     uv
     pre-commit
