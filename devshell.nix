@@ -2,7 +2,7 @@
 
 let
   # Pin vim to specific version for test stability
-  htutil_test_vim_target = pkgs.vim.overrideAttrs (oldAttrs: {
+  htutil_test_vim_target = pkgs.vim.overrideAttrs (_: {
     version = "9.1.1336";
     src = pkgs.fetchFromGitHub {
       owner = "vim";

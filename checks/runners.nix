@@ -1,4 +1,4 @@
-{ inputs, pkgs, system }:
+{ pkgs, ... }:
 
 let
   # Create a runner script that uses our Python check runner
