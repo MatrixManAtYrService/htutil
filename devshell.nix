@@ -20,6 +20,9 @@ pkgs.mkShell {
     python3.pkgs.python-lsp-ruff
     pyright
     nixpkgs-fmt
+    nil # Nix language server
+    nixd # Advanced Nix language server
+    deadnix # Detects dead/unused Nix code
     python3
     uv
     pre-commit

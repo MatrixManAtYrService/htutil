@@ -1,9 +1,6 @@
 { inputs, pkgs, system }:
 
 let
-  # Import individual checks
-  checks = import ./individual.nix { inherit inputs pkgs system; };
-
   # Create a runner script that uses our Python check runner
   mkRunner = name: description: checkList:
     pkgs.writeShellScriptBin name ''
@@ -40,12 +37,14 @@ in
 {
   fast = mkRunner "run-checks-fast" "Fast Checks (Linting)" [
     { name = "nixfmt"; package = "check-nixfmt"; }
+    { name = "nil-check"; package = "check-nil"; }
     { name = "ruff-check"; package = "check-ruff-check"; }
     { name = "ruff-format"; package = "check-ruff-format"; }
   ];
 
   full = mkRunner "run-checks-full" "Full Checks (Linting + Tests)" [
     { name = "nixfmt"; package = "check-nixfmt"; }
+    { name = "nil-check"; package = "check-nil"; }
     { name = "ruff-check"; package = "check-ruff-check"; }
     { name = "ruff-format"; package = "check-ruff-format"; }
     { name = "pytest-single"; package = "check-pytest-single"; }
@@ -53,6 +52,7 @@ in
 
   release = mkRunner "run-checks-release" "Release Checks (Linting + Multi-version Tests)" [
     { name = "nixfmt"; package = "check-nixfmt"; }
+    { name = "nil-check"; package = "check-nil"; }
     { name = "ruff-check"; package = "check-ruff-check"; }
     { name = "ruff-format"; package = "check-ruff-format"; }
     { name = "pytest-py310"; package = "check-pytest-py310"; }

@@ -109,4 +109,53 @@ in
       ${pkgs.python312}/bin/python --version
       uv run --python "${pkgs.python312}/bin/python" pytest -v
     '';
+
+  # Nix linting check using deadnix to detect unused code
+  nil-check = makeCheck "nil-check" "Nix linting (deadnix)"
+    (with pkgs; [ deadnix ])
+    ''
+      echo "Running deadnix to detect unused Nix code..."
+      
+      # Find all .nix files in the project
+      nix_files=$(find . -name "*.nix" -not -path "./.*" -not -path "./result*" | sort)
+      
+      if [ -z "$nix_files" ]; then
+        echo "No .nix files found to check"
+        exit 0
+      fi
+      
+      echo "Checking $(echo "$nix_files" | wc -l) Nix files:"
+      echo "$nix_files" | sed 's/^/  /'
+      echo ""
+      
+      # Run deadnix on all files
+      exit_code=0
+      
+      # deadnix returns exit code 1 if it finds issues
+      if ! deadnix_output=$(deadnix $nix_files 2>&1); then
+        echo "❌ Found unused/dead Nix code:"
+        echo "$deadnix_output" | sed 's/^/  /'
+        exit_code=1
+      else
+        echo "✅ No unused code detected by deadnix"
+      fi
+      
+      # Also run basic syntax checks
+      for file in $nix_files; do
+        if ! nix-instantiate --parse "$file" >/dev/null 2>&1; then
+          echo "❌ Syntax error in $file:"
+          nix-instantiate --parse "$file" 2>&1 | sed 's/^/  /'
+          exit_code=1
+        fi
+      done
+      
+      if [ $exit_code -eq 0 ]; then
+        echo ""
+        echo "✅ All Nix files passed linting checks"
+      else
+        echo ""
+        echo "❌ Some Nix files have linting issues"
+        exit 1
+      fi
+    '';
 }
