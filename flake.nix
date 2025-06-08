@@ -5,6 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-python.url = "github:cachix/nixpkgs-python";
     blueprint.url = "github:numtide/blueprint";
+    checks.url = "path:/Users/matt/src/checks";
     git-hooks = {
       url = "github:cachix/git-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
