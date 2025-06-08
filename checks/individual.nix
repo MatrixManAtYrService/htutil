@@ -16,6 +16,9 @@ let
   commonEnv = ''
     export HOME=$(mktemp -d)
     export HTUTIL_TEST_VIM_TARGET="${htutil_test_vim_target}/bin/vim"
+    export LANG=en_US.UTF-8
+    export LC_ALL=en_US.UTF-8
+    export PYTHONIOENCODING=utf-8
   '';
 
   # Create a check component that outputs a clear result

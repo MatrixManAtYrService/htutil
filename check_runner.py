@@ -37,6 +37,8 @@ def run_nix_build(check_path: str) -> Tuple[bool, bool, str]:
             ["nix", "build", check_path, "--no-link", "--print-build-logs"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",  # Replace invalid UTF-8 with replacement characters
             timeout=300,  # 5 minute timeout
         )
 
@@ -65,6 +67,8 @@ def get_check_result_text(check_path: str) -> Optional[str]:
             ["nix", "build", check_path, "--no-link", "--print-out-paths"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",  # Replace invalid UTF-8 with replacement characters
         )
         if result.returncode == 0:
             result_path = Path(result.stdout.strip()) / "result"

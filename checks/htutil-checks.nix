@@ -22,14 +22,18 @@ let
   commonEnv = ''
     export HOME=$(mktemp -d)
     export HTUTIL_TEST_VIM_TARGET="${htutil_test_vim_target}/bin/vim"
+    export LANG=en_US.UTF-8
+    export LC_ALL=en_US.UTF-8
+    export PYTHONIOENCODING=utf-8
   '';
 
 in
 {
   # Use framework checks directly
-  nix-linting = checksFramework.nix-linting;
-  nix-formatting = checksFramework.nix-formatting;
-  python-linting = checksFramework.python-linting;
+  inherit (checksFramework)
+    nix-linting
+    nix-formatting
+    python-linting;
 
   # htutil-specific tests
   pytest-single = makeCheck "pytest-single" "Python tests (single version)"
