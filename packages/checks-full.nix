@@ -1,4 +1,4 @@
-# Full checks - uses reusable patterns from checks flake (includes tests)
+# Full checks - includes fast checks plus tests
 { inputs, pkgs, ... }:
 
 let
@@ -6,18 +6,40 @@ let
 
   # Get the checks library and patterns
   checksLib = inputs.checks.packages.${system}.lib;
-  inherit (checksLib) runner patterns;
+  inherit (checksLib) runner patterns makeCheckWithDeps;
 
   # Import shared test configuration
   testConfig = pkgs.callPackage ./test-config.nix { inherit inputs; };
 
-  # Apply check patterns to htutil source with test dependencies
-  htutilSrc = ../.; # htutil source root
-  htutilChecks = patterns.fullCheckSuite {
+  # Get htutil's Python environment from uv2nix
+  htutilPackage = import ./default.nix { inherit inputs pkgs; };
+  htutilPythonEnv = htutilPackage.pythonEnv;
+
+  # Create individual check derivations for htutil
+  htutilSrc = ../.;
+
+  # All the fast checks
+  deadnixCheck = patterns.deadnix { src = htutilSrc; };
+  statixCheck = patterns.statix { src = htutilSrc; };
+  nixpkgsFmtCheck = patterns.nixpkgs-fmt { src = htutilSrc; };
+  ruffCheckCheck = patterns.ruff-check { src = htutilSrc; };
+  ruffFormatCheck = patterns.ruff-format { src = htutilSrc; };
+  pyrightCheck = patterns.pyright {
     src = htutilSrc;
-    projectName = "htutil";
-    extraDeps = testConfig.baseDeps;
-    env = testConfig.baseEnv;
+    pythonEnv = htutilPythonEnv;
+  };
+
+  # Additional test check
+  pytestCheck = makeCheckWithDeps {
+    name = "pytest";
+    description = "Python unit tests";
+    src = htutilSrc;
+    dependencies = [ htutilPythonEnv ] ++ testConfig.baseDeps;
+    environment = testConfig.baseEnv;
+    script = ''
+      echo "🧪 Running pytest..."
+      pytest -v tests/
+    '';
   };
 
 in
@@ -29,9 +51,12 @@ pkgs.writeShellScriptBin "htutil-checks-full" ''
   
   # Run checks using the framework runner with derivation paths
   ${runner}/bin/check-runner \
-    "nix-linting:${htutilChecks.nix-linting}" \
-    "nix-formatting:${htutilChecks.nix-formatting}" \
-    "python-linting:${htutilChecks.python-linting}" \
-    "python-testing:${htutilChecks.python-testing}" \
+    "deadnix:${deadnixCheck}" \
+    "statix:${statixCheck}" \
+    "nixpkgs-fmt:${nixpkgsFmtCheck}" \
+    "ruff-check:${ruffCheckCheck}" \
+    "ruff-format:${ruffFormatCheck}" \
+    "pyright:${pyrightCheck}" \
+    "pytest:${pytestCheck}" \
     --suite-name "Full Checks"
 ''

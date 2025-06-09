@@ -1,4 +1,4 @@
-# Release checks - uses reusable patterns from checks flake (includes multi-version tests)
+# Release checks - includes full checks plus multi-version testing
 { inputs, pkgs, ... }:
 
 let
@@ -6,29 +6,53 @@ let
 
   # Get the checks library and patterns
   checksLib = inputs.checks.packages.${system}.lib;
-  inherit (checksLib) runner patterns;
+  inherit (checksLib) runner patterns makeCheckWithDeps;
 
   # Import shared test configuration
   testConfig = pkgs.callPackage ./test-config.nix { inherit inputs; };
 
-  # Apply check patterns to htutil source with multi-version Python testing
-  htutilSrc = ../.; # htutil source root
+  # Get htutil's Python environment from uv2nix
+  htutilPackage = import ./default.nix { inherit inputs pkgs; };
+  htutilPythonEnv = htutilPackage.pythonEnv;
 
-  # Create individual checks for different Python versions
-  nixLinting = patterns.nixLinting { src = htutilSrc; };
-  nixFormatting = patterns.nixFormatting { src = htutilSrc; };
-  pythonLinting = patterns.pythonLinting { src = htutilSrc; };
+  # Create individual check derivations for htutil
+  htutilSrc = ../.;
 
-  # Python tests with different versions using shared config
-  pythonTest310 = patterns.pythonTesting (
-    { src = htutilSrc; name = "pytest-py310"; } //
-    (testConfig.pythonTestConfig { pythonPkg = pkgs.python310; })
-  );
+  # All the fast checks
+  deadnixCheck = patterns.deadnix { src = htutilSrc; };
+  statixCheck = patterns.statix { src = htutilSrc; };
+  nixpkgsFmtCheck = patterns.nixpkgs-fmt { src = htutilSrc; };
+  ruffCheckCheck = patterns.ruff-check { src = htutilSrc; };
+  ruffFormatCheck = patterns.ruff-format { src = htutilSrc; };
+  pyrightCheck = patterns.pyright {
+    src = htutilSrc;
+    pythonEnv = htutilPythonEnv;
+  };
 
-  pythonTest312 = patterns.pythonTesting (
-    { src = htutilSrc; name = "pytest-py312"; } //
-    (testConfig.pythonTestConfig { pythonPkg = pkgs.python312; })
-  );
+  # Test checks for different Python versions
+  makePytestCheck = pythonPkg: makeCheckWithDeps {
+    name = "pytest-${pythonPkg.python.pythonVersion}";
+    description = "Python unit tests with ${pythonPkg.python.pythonVersion}";
+    src = htutilSrc;
+    dependencies = [
+      (pythonPkg.withPackages (ps: with ps; [
+        ansi2html
+        typer
+        rich
+        pytest
+        structlog
+      ]))
+    ] ++ testConfig.baseDeps;
+    environment = testConfig.baseEnv;
+    script = ''
+      echo "🧪 Running pytest with Python ${pythonPkg.python.pythonVersion}..."
+      pytest -v tests/
+    '';
+  };
+
+  pytest310Check = makePytestCheck pkgs.python310Packages;
+  pytest311Check = makePytestCheck pkgs.python311Packages;
+  pytest312Check = makePytestCheck pkgs.python312Packages;
 
 in
 pkgs.writeShellScriptBin "htutil-checks-release" ''
@@ -39,10 +63,14 @@ pkgs.writeShellScriptBin "htutil-checks-release" ''
   
   # Run checks using the framework runner with derivation paths
   ${runner}/bin/check-runner \
-    "nix-linting:${nixLinting}" \
-    "nix-formatting:${nixFormatting}" \
-    "python-linting:${pythonLinting}" \
-    "pytest-py310:${pythonTest310}" \
-    "pytest-py312:${pythonTest312}" \
+    "deadnix:${deadnixCheck}" \
+    "statix:${statixCheck}" \
+    "nixpkgs-fmt:${nixpkgsFmtCheck}" \
+    "ruff-check:${ruffCheckCheck}" \
+    "ruff-format:${ruffFormatCheck}" \
+    "pyright:${pyrightCheck}" \
+    "pytest-3.10:${pytest310Check}" \
+    "pytest-3.11:${pytest311Check}" \
+    "pytest-3.12:${pytest312Check}" \
     --suite-name "Release Checks"
 ''

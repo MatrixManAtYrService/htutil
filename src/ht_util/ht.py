@@ -152,6 +152,8 @@ class HTProcess:
         self.event_queue = event_queue
         self.command = command
         self.output_events = []
+        self.unknown_events = []  # Store unknown events
+        self.latest_snapshot = None  # Store latest snapshot text
         self.start_time = time.time()
         self.exit_code = None
         self.rows = rows

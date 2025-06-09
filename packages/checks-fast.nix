@@ -1,4 +1,4 @@
-# Fast checks - uses reusable patterns from checks flake
+# Fast checks - assembles checks from the checks framework
 { inputs, pkgs, ... }:
 
 let
@@ -8,11 +8,30 @@ let
   checksLib = inputs.checks.packages.${system}.lib;
   inherit (checksLib) runner patterns;
 
-  # Apply check patterns to htutil source
-  htutilSrc = ../.; # htutil source root
-  htutilChecks = patterns.fastCheckSuite {
+  # Get htutil's Python environment from uv2nix  
+  htutilPackage = import ./default.nix { inherit inputs pkgs; };
+
+  # For pyright, create an environment that includes pytest manually
+  # since the test files need it
+  htutilPythonEnvWithTest = pkgs.python3.withPackages (ps: [
+    ps.pytest
+    ps.typer
+    ps.rich
+    ps.ansi2html
+  ]);
+
+  # Create individual check derivations for htutil
+  htutilSrc = ../.;
+
+  # Build the individual checks
+  deadnixCheck = patterns.deadnix { src = htutilSrc; };
+  statixCheck = patterns.statix { src = htutilSrc; };
+  nixpkgsFmtCheck = patterns.nixpkgs-fmt { src = htutilSrc; };
+  ruffCheckCheck = patterns.ruff-check { src = htutilSrc; };
+  ruffFormatCheck = patterns.ruff-format { src = htutilSrc; };
+  pyrightCheck = patterns.pyright {
     src = htutilSrc;
-    projectName = "htutil";
+    pythonEnv = htutilPythonEnvWithTest;
   };
 
 in
@@ -24,8 +43,11 @@ pkgs.writeShellScriptBin "htutil-checks-fast" ''
   
   # Run checks using the framework runner with derivation paths
   ${runner}/bin/check-runner \
-    "nix-linting:${htutilChecks.nix-linting}" \
-    "nix-formatting:${htutilChecks.nix-formatting}" \
-    "python-linting:${htutilChecks.python-linting}" \
+    "deadnix:${deadnixCheck}" \
+    "statix:${statixCheck}" \
+    "nixpkgs-fmt:${nixpkgsFmtCheck}" \
+    "ruff-check:${ruffCheckCheck}" \
+    "ruff-format:${ruffFormatCheck}" \
+    "pyright:${pyrightCheck}" \
     --suite-name "Fast Checks"
 ''

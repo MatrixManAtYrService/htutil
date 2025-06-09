@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .core import HTProcess
+    from .ht import HTProcess
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,11 @@ class EventProcessor:
     def process_event(self, event: dict) -> None:
         """Process a single event from ht."""
         event_type = event.get("type")
+        if event_type is None:
+            logger.debug("Received event with no type")
+            self.ht_process.unknown_events.append(event)
+            return
+
         handler = self.handlers.get(event_type)
         if handler:
             handler(event)
