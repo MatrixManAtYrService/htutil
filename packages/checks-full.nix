@@ -15,6 +15,16 @@ let
   htutilPackage = import ./default.nix { inherit inputs pkgs; };
   htutilPythonEnv = htutilPackage.pythonEnv;
 
+  # Load workspace for uv2nix
+  workspace = inputs.uv2nix.lib.workspace.loadWorkspace {
+    workspaceRoot = ../.;
+  };
+
+  # Create Python environment with dev dependencies using uv2nix properly
+  # workspace.deps.all includes both default dependencies and all dev groups
+  # This is the correct way to get all dependencies including dev groups
+  htutilPythonEnvWithDev = htutilPackage.pythonSet.mkVirtualEnv "htutil-dev-env" workspace.deps.all;
+
   # Create individual check derivations for htutil
   htutilSrc = ../.;
 
@@ -26,7 +36,7 @@ let
   ruffFormatCheck = patterns.ruff-format { src = htutilSrc; };
   pyrightCheck = patterns.pyright {
     src = htutilSrc;
-    pythonEnv = htutilPythonEnv;
+    pythonEnv = htutilPythonEnvWithDev;
   };
 
   # Additional test check
@@ -34,8 +44,16 @@ let
     name = "pytest";
     description = "Python unit tests";
     src = htutilSrc;
-    dependencies = [ htutilPythonEnv ] ++ testConfig.baseDeps;
-    environment = testConfig.baseEnv;
+    dependencies = [ htutilPythonEnvWithDev ] ++ testConfig.baseDeps;
+    environment = testConfig.baseEnv // {
+      # Handle both traditional withPackages (has sitePackages) and uv2nix mkVirtualEnv (doesn't)
+      PYTHONPATH =
+        if htutilPythonEnvWithDev ? sitePackages
+        then "${htutilPythonEnvWithDev}/${htutilPythonEnvWithDev.sitePackages}"
+        else "${htutilPythonEnvWithDev}/lib/python*/site-packages";
+      # Make sure pytest and other executables are available
+      PATH = "${htutilPythonEnvWithDev}/bin:$PATH";
+    };
     script = ''
       echo "🧪 Running pytest..."
       pytest -v tests/

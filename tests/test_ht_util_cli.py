@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Pattern:
-    lines: List[Union[str, re.Pattern]]  # List of strings or compiled regex patterns
+    lines: List[Union[str, re.Pattern]]
 
 
 def terminal_contents(
