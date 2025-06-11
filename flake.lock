@@ -47,8 +47,8 @@
         "uv2nix": "uv2nix"
       },
       "locked": {
-        "lastModified": 1749451110,
-        "narHash": "sha256-Ao0OgBWGRxkm6zrsA58WsfootkM878sn0R7hQ2xhc9w=",
+        "lastModified": 1749668596,
+        "narHash": "sha256-C/MVe9MaXXZLbQ/iWSwBX6L1LRhD/BXNYd6MtlMJGoY=",
         "path": "/Users/matt/src/checks",
         "type": "path"
       },
