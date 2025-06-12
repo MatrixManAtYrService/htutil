@@ -55,29 +55,5 @@ let
   '';
   
 in
-{
-  # The actual htutil package (wheel format)
-  htutil = htutilPackage;
-  
-  # Script to build distribution artifacts
-  build-dist = buildDist;
-  
-  # Pre-built wheel directly from uv2nix
-  wheel = pkgs.runCommand "htutil-wheel" {} ''
-    mkdir -p $out
-    cp ${htutilPackage}/*.whl $out/ 2>/dev/null || echo "No wheel found in package"
-    
-    # If no wheel in package, build one
-    if [ ! -f $out/*.whl ]; then
-      cd ${../.}
-      ${pythonSet.python}/bin/python -m build --wheel --outdir $out
-    fi
-  '';
-  
-  # Source distribution
-  sdist = pkgs.runCommand "htutil-sdist" {} ''
-    mkdir -p $out
-    cd ${../.}
-    ${pythonSet.python}/bin/python -m build --sdist --outdir $out
-  '';
-}
+# Default to the main htutil package
+htutilPackage

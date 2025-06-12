@@ -8,19 +8,17 @@ let
   inherit (checksLib) runner patterns makeCheckWithDeps;
 
   # Import shared test configuration
-  testConfig = pkgs.callPackage ./test-config.nix { inherit inputs; };
+  testConfig = pkgs.callPackage ./lib/test-config.nix { inherit inputs; };
 
   # Get htutil's Python environment from uv2nix
   htutilPackage = import ./default.nix { inherit inputs pkgs; };
   htutilPythonEnv = htutilPackage.pythonEnv;
 
-  # Load workspace for uv2nix
-  workspace = inputs.uv2nix.lib.workspace.loadWorkspace {
-    workspaceRoot = ../.;
-  };
+  # Get internal utilities including pythonSet and workspace
+  internal = import ./lib/internal.nix { inherit inputs pkgs; };
 
   # Create Python environment with dev dependencies using uv2nix properly
-  htutilPythonEnvWithDev = htutilPackage.pythonSet.mkVirtualEnv "htutil-dev-env" workspace.deps.all;
+  htutilPythonEnvWithDev = internal.pythonSet.mkVirtualEnv "htutil-dev-env" internal.workspace.deps.all;
 
   # Create individual check derivations for htutil
   htutilSrc = ../.;

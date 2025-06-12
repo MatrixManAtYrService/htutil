@@ -12,6 +12,45 @@ from .keys import KeyInput, keys_to_strings, Press
 from ansi2html import Ansi2HTMLConverter
 
 
+
+def get_ht_binary():
+    """
+    Get the path to the ht binary.
+    
+    Order of precedence:
+    1. HTUTIL_HT_BIN environment variable (if set and valid)
+    2. System PATH (default 'ht')
+    """
+    import os
+    from pathlib import Path
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    # Check for user-specified ht binary
+    user_ht = os.environ.get('HTUTIL_HT_BIN')
+    if user_ht:
+        user_ht_path = Path(user_ht)
+        if user_ht_path.is_file() and os.access(str(user_ht_path), os.X_OK):
+            logger.info(f"Using user-specified ht binary from HTUTIL_HT_BIN: {user_ht}")
+            return str(user_ht_path)
+        else:
+            import sys
+            logger.warning(f"HTUTIL_HT_BIN='{user_ht}' is not a valid executable, falling back to default")
+            print(f"Warning: HTUTIL_HT_BIN='{user_ht}' is not a valid executable, using default", file=sys.stderr)
+    
+    # Check for bundled ht binary (when distributed)
+    module_dir = Path(__file__).parent
+    bundled_ht = module_dir / '_bundled' / 'ht'
+    if bundled_ht.exists() and bundled_ht.is_file():
+        logger.info(f"Using bundled ht binary: {bundled_ht}")
+        return str(bundled_ht)
+    
+    # Fall back to system PATH
+    logger.debug("Using ht from system PATH")
+    return "ht"
+
+
 def clean_ansi_for_html(ansi_text: str) -> str:
     """
     Clean ANSI sequences to keep only color/style codes that ansi2html can handle.
@@ -373,7 +412,7 @@ def run(
         cmd_args = command
 
     # Create the ht command with event subscription
-    ht_cmd = ["ht", "--subscribe", "init,snapshot,output,resize,pid,exitCode"]
+    ht_cmd = [get_ht_binary(), "--subscribe", "init,snapshot,output,resize,pid,exitCode"]
 
     # Add size options if specified
     if rows is not None and cols is not None:

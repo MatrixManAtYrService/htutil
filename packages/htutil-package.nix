@@ -45,30 +45,22 @@ let
   inherit (pythonSet) htutil;
   
 in
-{
-  # Main distributable package (matches isd-tui pattern)
-  default = pkgs.stdenvNoCC.mkDerivation {
-    pname = "htutil";
-    inherit version;
-    src = htutilEnv;
-    
-    buildPhase = ''
-      mkdir -p $out/bin
-      ln -s $src/bin/htutil $out/bin/
-    '';
-    
-    meta = with pkgs.lib; {
-      description = "A python wrapper around ht (a headless terminal utility)";
-      homepage = "https://github.com/yourusername/htutil";
-      license = licenses.mit;
-      mainProgram = "htutil";
-      platforms = platforms.unix;
-    };
+# Main distributable package (matches isd-tui pattern)
+pkgs.stdenvNoCC.mkDerivation {
+  pname = "htutil";
+  inherit version;
+  src = htutilEnv;
+  
+  buildPhase = ''
+    mkdir -p $out/bin
+    ln -s $src/bin/htutil $out/bin/
+  '';
+  
+  meta = with pkgs.lib; {
+    description = "A python wrapper around ht (a headless terminal utility)";
+    homepage = "https://github.com/yourusername/htutil";
+    license = licenses.mit;
+    mainProgram = "htutil";
+    platforms = platforms.unix;
   };
-  
-  # Alias for backward compatibility
-  inherit htutil;
-  
-  # Development environment with all dependencies
-  htutil-dev = pythonSet.mkVirtualEnv "htutil-dev-env" workspace.deps.all;
 }

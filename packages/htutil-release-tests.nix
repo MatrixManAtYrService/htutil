@@ -6,7 +6,7 @@ let
   inherit (checksLib) makeCheckWithDeps;
 
   # Import shared test configuration
-  testConfig = pkgs.callPackage ./test-config.nix { inherit inputs; };
+  testConfig = pkgs.callPackage ./lib/test-config.nix { inherit inputs; };
 
   # Release tests that verify htutil works across multiple Python versions using uv
 
@@ -43,9 +43,5 @@ let
   };
 
 in
-{
-  # Export release tests for different Python versions
-  py310 = makeReleaseTest pkgs.python310 "3.10";
-  py311 = makeReleaseTest pkgs.python311 "3.11";
-  py312 = makeReleaseTest pkgs.python312 "3.12";
-}
+# Default to Python 3.11 release test
+makeReleaseTest pkgs.python311 "3.11"

@@ -10,7 +10,8 @@ let
 in
 {
   # Common dependencies for htutil tests
-  baseDeps = with pkgs; [ uv inputs.ht.packages.${system}.ht testVim ];
+  baseDeps = with pkgs; [ uv testVim ] ++ 
+    (pkgs.lib.optional ((inputs.ht.packages.${system} or null) != null) inputs.ht.packages.${system}.ht);
 
   # htutil-specific environment variables
   baseEnv = {
@@ -19,7 +20,8 @@ in
 
   # Helper to create Python test config with specific Python version
   pythonTestConfig = { pythonPkg ? pkgs.python3, name ? "python-testing" }: {
-    extraDeps = with pkgs; [ uv pythonPkg inputs.ht.packages.${system}.ht testVim ];
+    extraDeps = with pkgs; [ uv pythonPkg testVim ] ++ 
+      (pkgs.lib.optional ((inputs.ht.packages.${system} or null) != null) inputs.ht.packages.${system}.ht);
     env = {
       HTUTIL_TEST_VIM_TARGET = "${testVim}/bin/vim";
     } // (if pythonPkg != pkgs.python3 then {

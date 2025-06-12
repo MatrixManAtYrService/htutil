@@ -35,9 +35,5 @@ let
   };
 
 in
-{
-  # Export packages for different Python versions
-  py310 = buildHtutilForPython pkgs.python310;
-  py311 = buildHtutilForPython pkgs.python311;
-  py312 = buildHtutilForPython pkgs.python312;
-}
+# Default to Python 3.11
+buildHtutilForPython pkgs.python311
