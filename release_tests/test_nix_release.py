@@ -11,6 +11,9 @@ from typing import List, Tuple
 
 import pytest
 
+# Python versions to test
+PYTHON_VERSIONS = ["3.10", "3.11", "3.12"]
+
 
 class NixPythonTestEnvironment:
     """Test environment using nix-shell --pure with specific Python versions."""
@@ -33,6 +36,8 @@ class NixPythonTestEnvironment:
     
     def run_command(self, commands: List[str], install_htutil: bool = True, use_venv: bool = True) -> Tuple[int, str]:
         """Run commands in nix-shell --pure with specific Python version."""
+        
+        print(f"🐍 Running commands with Python {self.python_version}")
         
         # Create the nix shell expression for the specific Python version
         nix_expr = f"""
@@ -69,9 +74,11 @@ mkShell {{
             if self.htutil_wheel and self.htutil_wheel.exists():
                 # Install htutil from the wheel (includes bundled ht binary)
                 script_lines.append(f"pip install {self.htutil_wheel}")
+                print(f"📦 Installing htutil from wheel: {self.htutil_wheel.name}")
             else:
                 # Fallback to editable install from workspace
                 script_lines.append(f"pip install -e {self.workspace_root}")
+                print(f"📦 Installing htutil from workspace (editable): {self.workspace_root}")
         
         # Handle complex Python commands by writing them to separate files
         for i, command in enumerate(commands):
@@ -85,10 +92,14 @@ mkShell {{
                     python_file = self.temp_dir / f"python_script_{i}.py"
                     python_file.write_text(python_code)
                     script_lines.append(f"python {python_file}")
+                    print(f"🐍 Executing Python script:")
+                    print(f"    {python_code.strip()}")
                 else:
                     script_lines.append(command)
+                    print(f"💻 Executing: {command}")
             else:
                 script_lines.append(command)
+                print(f"💻 Executing: {command}")
         
         # Write the script file
         script_content = "\n".join(script_lines)
@@ -101,6 +112,8 @@ mkShell {{
             "--run", str(script_path)
         ]
         
+        print(f"🏃 Running nix-shell command...")
+        
         try:
             result = subprocess.run(
                 nix_cmd,
@@ -109,10 +122,23 @@ mkShell {{
                 text=True,
                 timeout=300  # 5 minute timeout
             )
+            
+            # Print the output for debugging
+            if result.stdout:
+                print("📤 STDOUT:")
+                print(result.stdout)
+            if result.stderr:
+                print("⚠️  STDERR:")
+                print(result.stderr)
+            
+            print(f"🏁 Command completed with exit code: {result.returncode}")
+            
             return result.returncode, result.stdout + result.stderr
         except subprocess.TimeoutExpired:
+            print("⏰ Command timed out after 5 minutes")
             return 1, "Command timed out after 5 minutes"
         except Exception as e:
+            print(f"❌ Error running nix-shell command: {e}")
             return 1, f"Error running nix-shell command: {e}"
 
 
@@ -166,47 +192,48 @@ def htutil_wheel(workspace_root):
             shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-class TestNixPython310:
-    """Test htutil functionality with Python 3.10 using nix-shell."""
+@pytest.mark.parametrize("python_version", PYTHON_VERSIONS)
+class TestNixPython:
+    """Test htutil functionality across Python versions using nix-shell."""
     
-    def test_cli_help(self, workspace_root, htutil_wheel):
+    def test_cli_help(self, python_version, workspace_root, htutil_wheel):
         """Test that htutil --help works."""
-        with NixPythonTestEnvironment("3.10", workspace_root, htutil_wheel) as env:
+        with NixPythonTestEnvironment(python_version, workspace_root, htutil_wheel) as env:
             exit_code, output = env.run_command(["htutil --help"])
             assert exit_code == 0, f"htutil --help failed: {output}"
             assert "usage: htutil" in output.lower(), "Expected usage message"
             assert "ht terminal emulation" in output.lower(), "Expected description"
     
-    def test_cli_echo_capture(self, workspace_root, htutil_wheel):
+    def test_cli_echo_capture(self, python_version, workspace_root, htutil_wheel):
         """Test capturing echo command output."""
-        with NixPythonTestEnvironment("3.10", workspace_root, htutil_wheel) as env:
-            commands = ['htutil --rows 5 --cols 40 -- echo "Test from Python 3.10"']
+        with NixPythonTestEnvironment(python_version, workspace_root, htutil_wheel) as env:
+            commands = [f'htutil --rows 5 --cols 40 -- echo "Test from Python {python_version}"']
             exit_code, output = env.run_command(commands)
             
             # Should work without binary architecture issues since we're using native nix
             assert exit_code == 0, f"htutil echo failed: {output}"
-            assert "Test from Python 3.10" in output, "Expected echo output"
+            assert f"Test from Python {python_version}" in output, "Expected echo output"
     
-    def test_cli_terminal_size(self, workspace_root, htutil_wheel):
+    def test_cli_terminal_size(self, python_version, workspace_root, htutil_wheel):
         """Test that terminal size is properly set."""
-        with NixPythonTestEnvironment("3.10", workspace_root, htutil_wheel) as env:
+        with NixPythonTestEnvironment(python_version, workspace_root, htutil_wheel) as env:
             commands = ['htutil --rows 10 --cols 50 -- bash -c "tput lines; tput cols"']
             exit_code, output = env.run_command(commands)
             assert exit_code == 0, f"htutil tput failed: {output}"
             # Check that some numeric output is present (terminal dimensions)
             assert any(char.isdigit() for char in output), "Expected numeric terminal dimensions"
     
-    def test_api_import(self, workspace_root, htutil_wheel):
+    def test_api_import(self, python_version, workspace_root, htutil_wheel):
         """Test that ht_util can be imported."""
-        with NixPythonTestEnvironment("3.10", workspace_root, htutil_wheel) as env:
+        with NixPythonTestEnvironment(python_version, workspace_root, htutil_wheel) as env:
             commands = ['python -c "import ht_util; print(f\'Imported: {ht_util.__name__}\')"']
             exit_code, output = env.run_command(commands)
             assert exit_code == 0, f"Import failed: {output}"
             assert "Imported: ht_util" in output
     
-    def test_api_create_ht_instance(self, workspace_root, htutil_wheel):
+    def test_api_create_ht_instance(self, python_version, workspace_root, htutil_wheel):
         """Test creating an ht_process instance."""
-        with NixPythonTestEnvironment("3.10", workspace_root, htutil_wheel) as env:
+        with NixPythonTestEnvironment(python_version, workspace_root, htutil_wheel) as env:
             commands = [
                 """python -c "
 from ht_util import ht_process
@@ -223,17 +250,17 @@ with ht_process(['echo', 'test'], rows=10, cols=40) as proc:
             assert "Created ht_process instance: rows=10, cols=40" in output
             assert "ht_process context manager successful" in output
     
-    def test_api_run_command(self, workspace_root, htutil_wheel):
+    def test_api_run_command(self, python_version, workspace_root, htutil_wheel):
         """Test running a command via Python API."""
-        with NixPythonTestEnvironment("3.10", workspace_root, htutil_wheel) as env:
+        with NixPythonTestEnvironment(python_version, workspace_root, htutil_wheel) as env:
             commands = [
-                """python -c "
+                f"""python -c "
 from ht_util import run
 import time
-proc = run(['echo', 'Hello from API'], rows=5, cols=40)
+proc = run(['echo', 'Hello from API Python {python_version}'], rows=5, cols=40)
 time.sleep(0.5)  # Give command time to complete
 snapshot = proc.snapshot()
-print(f'Got snapshot with {len(snapshot.text)} chars')
+print(f'Got snapshot with {{len(snapshot.text)}} chars')
 proc.exit()
 print('Command execution successful')
 "
@@ -244,87 +271,7 @@ print('Command execution successful')
             assert "Command execution successful" in output
 
 
-class TestNixPython311:
-    """Test htutil functionality with Python 3.11 using nix-shell."""
-    
-    def test_cli_help(self, workspace_root, htutil_wheel):
-        """Test that htutil --help works."""
-        with NixPythonTestEnvironment("3.11", workspace_root, htutil_wheel) as env:
-            exit_code, output = env.run_command(["htutil --help"])
-            assert exit_code == 0, f"htutil --help failed: {output}"
-            assert "usage: htutil" in output.lower(), "Expected usage message"
-            assert "ht terminal emulation" in output.lower(), "Expected description"
-    
-    def test_cli_echo_capture(self, workspace_root, htutil_wheel):
-        """Test capturing echo command output."""
-        with NixPythonTestEnvironment("3.11", workspace_root, htutil_wheel) as env:
-            commands = ['htutil --rows 5 --cols 40 -- echo "Test from Python 3.11"']
-            exit_code, output = env.run_command(commands)
-            assert exit_code == 0, f"htutil echo failed: {output}"
-            assert "Test from Python 3.11" in output, "Expected echo output"
-    
-    def test_api_run_command(self, workspace_root, htutil_wheel):
-        """Test running a command via Python API."""
-        with NixPythonTestEnvironment("3.11", workspace_root, htutil_wheel) as env:
-            commands = [
-                """python -c "
-from ht_util import run
-import time
-proc = run(['echo', 'Hello from API Python 3.11'], rows=5, cols=40)
-time.sleep(0.5)
-snapshot = proc.snapshot()
-print(f'Got snapshot with {len(snapshot.text)} chars')
-proc.exit()
-print('Command execution successful')
-"
-"""
-            ]
-            exit_code, output = env.run_command(commands)
-            assert exit_code == 0, f"Command execution failed: {output}"
-            assert "Command execution successful" in output
-
-
-class TestNixPython312:
-    """Test htutil functionality with Python 3.12 using nix-shell."""
-    
-    def test_cli_help(self, workspace_root, htutil_wheel):
-        """Test that htutil --help works."""
-        with NixPythonTestEnvironment("3.12", workspace_root, htutil_wheel) as env:
-            exit_code, output = env.run_command(["htutil --help"])
-            assert exit_code == 0, f"htutil --help failed: {output}"
-            assert "usage: htutil" in output.lower(), "Expected usage message"
-            assert "ht terminal emulation" in output.lower(), "Expected description"
-    
-    def test_cli_echo_capture(self, workspace_root, htutil_wheel):
-        """Test capturing echo command output."""
-        with NixPythonTestEnvironment("3.12", workspace_root, htutil_wheel) as env:
-            commands = ['htutil --rows 5 --cols 40 -- echo "Test from Python 3.12"']
-            exit_code, output = env.run_command(commands)
-            assert exit_code == 0, f"htutil echo failed: {output}"
-            assert "Test from Python 3.12" in output, "Expected echo output"
-    
-    def test_api_run_command(self, workspace_root, htutil_wheel):
-        """Test running a command via Python API."""
-        with NixPythonTestEnvironment("3.12", workspace_root, htutil_wheel) as env:
-            commands = [
-                """python -c "
-from ht_util import run
-import time
-proc = run(['echo', 'Hello from API Python 3.12'], rows=5, cols=40)
-time.sleep(0.5)
-snapshot = proc.snapshot()
-print(f'Got snapshot with {len(snapshot.text)} chars')
-proc.exit()
-print('Command execution successful')
-"
-"""
-            ]
-            exit_code, output = env.run_command(commands)
-            assert exit_code == 0, f"Command execution failed: {output}"
-            assert "Command execution successful" in output
-
-
-class TestNixPythonComparison:
+class TestNixPythonConsistency:
     """Test that ensures functionality is consistent across Python versions."""
     
     def test_version_consistency(self, workspace_root, htutil_wheel):
@@ -332,7 +279,7 @@ class TestNixPythonComparison:
         test_cmd = ['python -c "import ht_util; print(f\'Python: {ht_util.__name__} imported successfully\')"']
         
         results = {}
-        for version in ["3.10", "3.11", "3.12"]:
+        for version in PYTHON_VERSIONS:
             with NixPythonTestEnvironment(version, workspace_root, htutil_wheel) as env:
                 exit_code, output = env.run_command(test_cmd)
                 results[version] = (exit_code, output)
