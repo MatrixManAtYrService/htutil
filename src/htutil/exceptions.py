@@ -1,10 +1,10 @@
 """
-Custom exceptions for ht_util.
+Custom exceptions for htutil.
 """
 
 
 class HTUtilError(Exception):
-    """Base exception for ht_util errors."""
+    """Base exception for htutil errors."""
 
     pass
 

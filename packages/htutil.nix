@@ -1,43 +1,33 @@
-{ inputs, pkgs, python ? pkgs.python310, ... }:
+{ inputs, pkgs, perSystem, ... }:
 
 let
-  # Allow overriding the Python version, default to 3.10 (closest to 3.9 in regular nixpkgs)
-  # For Python 3.9, users can override with: inputs.nixpkgs-python.packages.${pkgs.system}."3.9"
+  lib = inputs.self.lib.htutil-lib pkgs;
+  inherit (lib) pythonSet workspace;
 
-  # Build htutil using the specified Python version
-  htutil = python.pkgs.buildPythonApplication {
-    pname = "htutil";
-    version = "0.1.0";
+  # Get project metadata
+  projectToml = builtins.fromTOML (builtins.readFile ../pyproject.toml);
+  inherit (projectToml.project) version;
 
-    src = ../.;
-    format = "pyproject";
-
-    nativeBuildInputs = with python.pkgs; [
-      hatchling
-    ];
-
-    propagatedBuildInputs = with python.pkgs; [
-      ansi2html
-      typer
-    ];
-
-    # Don't run tests during build
-    doCheck = false;
-
-    meta = with pkgs.lib; {
-      description = "A python wrapper around ht (a headless terminal utility)";
-      license = licenses.mit;
-    };
-  };
+  # Create the htutil virtual environment
+  htutilEnv = pythonSet.mkVirtualEnv "htutil-env" workspace.deps.default;
 
 in
-# Create a wrapper that includes ht in PATH
-pkgs.symlinkJoin {
-  name = "htutil-with-ht";
-  paths = [ htutil ];
-  buildInputs = [ pkgs.makeWrapper ];
-  postBuild = ''
-    wrapProgram $out/bin/htutil \
-      --prefix PATH : ${inputs.ht.packages.${pkgs.system}.ht}/bin
+# Main htutil package - clean and simple
+pkgs.stdenvNoCC.mkDerivation {
+  pname = "htutil";
+  inherit version;
+  src = htutilEnv;
+
+  buildPhase = ''
+    mkdir -p $out/bin
+    cp -r $src/* $out/
   '';
+
+  meta = with pkgs.lib; {
+    description = "htutil is a set of python convenience functions for the ht terminal utility, this package does not contain the ht binary.  Indicate the ht binary path via HTUTIL_HT_BINARY or use the htutil-wheel output instead (which bundles it).";
+    homepage = "https://github.com/yourusername/htutil";
+    license = licenses.mit;
+    mainProgram = "htutil";
+    platforms = platforms.unix;
+  };
 }

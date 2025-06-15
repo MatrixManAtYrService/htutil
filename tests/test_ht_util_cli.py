@@ -73,7 +73,7 @@ def terminal_contents(
 def test_echo_hello():
     cmd = [
         *(sys.executable, "-m"),
-        "ht_util.cli",
+        "htutil.cli",
         *("-r", "2"),
         *("-c", "10"),
         "--",
@@ -90,7 +90,7 @@ def test_echo_hello():
 def test_keys_after_subproc_exit():
     cmd = [
         *(sys.executable, "-m"),
-        "ht_util.cli",
+        "htutil.cli",
         *("-r", "2"),
         *("-c", "10"),
         # echo hello will happen immediately and the subprocess will close
@@ -130,7 +130,7 @@ def greeter_script():
 def test_send_keys(greeter_script):
     cmd = [
         *(sys.executable, "-m"),
-        "ht_util.cli",
+        "htutil.cli",
         *("-r", "2"),
         *("-c", "10"),
         *("-k", "world,Backspace,Enter"),
@@ -158,7 +158,7 @@ def test_vim():
 
     cmd = [
         *(sys.executable, "-m"),
-        "ht_util.cli",
+        "htutil.cli",
         "--snapshot",
         *("-k", "ihello,Escape"),
         "--snapshot",

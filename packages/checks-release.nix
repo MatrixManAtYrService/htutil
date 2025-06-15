@@ -1,31 +1,33 @@
-# Release checks - includes full checks plus multi-version testing
-{ inputs, pkgs, ... }:
+{ inputs, pkgs, perSystem, ... }:
 
 let
-  inherit (pkgs.stdenv.hostPlatform) system;
+  lib = inputs.self.lib.htutil-lib pkgs;
+  inherit (lib) pythonSet workspace testConfig checksLib releaseCheckPatterns htutilSrc;
+  inherit (checksLib) makeChecks makeCheckScript;
 
-  # Get the checks library and patterns
-  checksLib = inputs.checks.packages.${system}.lib;
-  inherit (checksLib) runner patterns makeCheckWithDeps;
+  # Create Python environment with dev dependencies using uv2nix properly
+  htutilPythonEnvWithDev = pythonSet.mkVirtualEnv "htutil-dev-env" workspace.deps.all;
 
-  # Import shared test configuration
-  testConfig = pkgs.callPackage ./test-config.nix { inherit inputs; };
+  # Build the wheel using htutil-wheel package from perSystem
+  htutilWheel = perSystem.self.htutil-wheel;
 
-  # Get release tests for different Python versions
-  releaseTests = pkgs.callPackage ./htutil-release-tests.nix { inherit inputs; };
+  # Create all release checks using the patterns
+  releaseChecks = makeChecks {
+    checkPatterns = releaseCheckPatterns;
+    src = htutilSrc;
+    pythonEnv = htutilPythonEnvWithDev;
+    inherit testConfig; # Pass testConfig for pytest
+    ignoreUndeclared = [ "htutil" ]; # Ignore self-import for fawltydeps
+    # Additional parameters for release-specific checks
+    wheel = htutilWheel; # For release-tests pattern
+    wheelPathEnvVar = "HTUTIL_WHEEL_PATH"; # For release-tests pattern
+    pythonVersion = pkgs.python311; # For python-version-test pattern
+    pythonVersionString = "3.11"; # For python-version-test pattern
+  };
 
 in
-pkgs.writeShellScriptBin "htutil-checks-release" ''
-  set -euo pipefail
-  
-  echo "🚀 Running htutil release checks..."
-  echo "This tests 'uv run htutil --help' across multiple Python versions."
-  echo ""
-  
-  # Run only the release tests (no linting - that's covered by checks-fast/checks-full)
-  ${runner}/bin/check-runner \
-    "release-py3.10:${releaseTests.py310}" \
-    "release-py3.11:${releaseTests.py311}" \
-    "release-py3.12:${releaseTests.py312}" \
-    --suite-name "Release Checks"
-''
+makeCheckScript {
+  name = "htutil-checks-release";
+  checks = releaseChecks;
+  suiteName = "Release Checks";
+}

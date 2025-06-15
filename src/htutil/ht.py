@@ -12,43 +12,93 @@ from .keys import KeyInput, keys_to_strings, Press
 from ansi2html import Ansi2HTMLConverter
 
 
-
 def get_ht_binary():
     """
     Get the path to the ht binary.
-    
+
     Order of precedence:
-    1. HTUTIL_HT_BIN environment variable (if set and valid)
-    2. System PATH (default 'ht')
+    1. HTUTIL_HT_BIN environment variable (if set and valid) - user override
+    2. Bundled ht binary via importlib.resources (production/wheel)
+    3. System 'ht' command from PATH (development fallback)
+
+    Raises:
+        RuntimeError: If ht binary cannot be found anywhere
     """
     import os
+    import shutil
     from pathlib import Path
     import logging
-    
+
     logger = logging.getLogger(__name__)
-    
-    # Check for user-specified ht binary
-    user_ht = os.environ.get('HTUTIL_HT_BIN')
-    if user_ht:
+
+    # 1. Check for user-specified ht binary override
+    user_ht = os.environ.get("HTUTIL_HT_BIN")
+    if user_ht and user_ht.strip():  # Ignore empty values
         user_ht_path = Path(user_ht)
         if user_ht_path.is_file() and os.access(str(user_ht_path), os.X_OK):
-            logger.info(f"Using user-specified ht binary from HTUTIL_HT_BIN: {user_ht}")
+            logger.info("Using user-specified ht binary from HTUTIL_HT_BIN")
             return str(user_ht_path)
         else:
-            import sys
-            logger.warning(f"HTUTIL_HT_BIN='{user_ht}' is not a valid executable, falling back to default")
-            print(f"Warning: HTUTIL_HT_BIN='{user_ht}' is not a valid executable, using default", file=sys.stderr)
-    
-    # Check for bundled ht binary (when distributed)
-    module_dir = Path(__file__).parent
-    bundled_ht = module_dir / '_bundled' / 'ht'
-    if bundled_ht.exists() and bundled_ht.is_file():
-        logger.info(f"Using bundled ht binary: {bundled_ht}")
-        return str(bundled_ht)
-    
-    # Fall back to system PATH
-    logger.debug("Using ht from system PATH")
-    return "ht"
+            raise RuntimeError(
+                f"HTUTIL_HT_BIN='{user_ht}' is not a valid executable file. "
+                f"Please check that the path exists and is executable."
+            )
+
+    # 2. Check for bundled ht binary using importlib.resources (production)
+    try:
+        from importlib import resources as impresources
+        from . import _bundled
+        import tempfile
+        import atexit
+
+        bundled_files = impresources.files(_bundled)
+        ht_resource = bundled_files / "ht"
+
+        if ht_resource.is_file():
+            logger.info("Using bundled ht binary")
+            # Read the binary data
+            ht_data = ht_resource.read_bytes()
+
+            # Create a temporary executable file
+            with tempfile.NamedTemporaryFile(
+                mode="wb", prefix="ht_", delete=False
+            ) as tmp_file:
+                tmp_file.write(ht_data)
+                tmp_path = tmp_file.name
+
+            # Make it executable
+            os.chmod(tmp_path, 0o755)
+
+            # Register cleanup on exit
+            atexit.register(
+                lambda: os.unlink(tmp_path) if os.path.exists(tmp_path) else None
+            )
+
+            return tmp_path
+
+    except (ImportError, FileNotFoundError, AttributeError):
+        # No bundled binary available - this is normal in development mode
+        logger.debug("No bundled ht binary found, falling back to system PATH")
+
+    # 3. Fall back to system 'ht' command (development mode)
+    system_ht = shutil.which("ht")
+    if system_ht:
+        logger.warning(
+            f"Using system ht binary from PATH: {system_ht}. "
+            "Version and compatibility are not guaranteed. "
+            "Consider using a wheel distribution with bundled ht for production."
+        )
+        return system_ht
+
+    # 4. If we get here, ht is not available anywhere
+    raise RuntimeError(
+        "Could not find ht binary. Please ensure one of the following:\n"
+        "1. Install htutil from a wheel distribution (includes bundled ht)\n"
+        "2. Install the 'ht' tool separately and ensure it's in PATH\n"
+        "3. Set HTUTIL_HT_BIN environment variable to point to ht binary\n"
+        "   Example: export HTUTIL_HT_BIN=/path/to/ht\n"
+        "Get ht from: https://github.com/andyk/ht"
+    )
 
 
 def clean_ansi_for_html(ansi_text: str) -> str:
@@ -412,7 +462,11 @@ def run(
         cmd_args = command
 
     # Create the ht command with event subscription
-    ht_cmd = [get_ht_binary(), "--subscribe", "init,snapshot,output,resize,pid,exitCode"]
+    ht_cmd = [
+        get_ht_binary(),
+        "--subscribe",
+        "init,snapshot,output,resize,pid,exitCode",
+    ]
 
     # Add size options if specified
     if rows is not None and cols is not None:

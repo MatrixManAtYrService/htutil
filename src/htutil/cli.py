@@ -92,9 +92,9 @@ def parse_interleaved_args() -> Tuple[
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python -m ht_util.cli -- echo hello
-  python -m ht_util.cli -k "hello,Enter" --snapshot -- vim
-  python -m ht_util.cli -r 30 -c 80 --snapshot -k "ihello,Escape" --snapshot -- vim
+  python -m htutil.cli -- echo hello
+  python -m htutil.cli -k "hello,Enter" --snapshot -- vim
+  python -m htutil.cli -r 30 -c 80 --snapshot -k "ihello,Escape" --snapshot -- vim
 
 The -k and --snapshot options can be used multiple times and will be processed in order.
         """.strip(),

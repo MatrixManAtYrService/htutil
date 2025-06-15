@@ -1,5 +1,7 @@
-{ inputs, pkgs, ... }:
+# Python package utilities
+{ inputs, ... }:
 
+pkgs:
 let
   inherit (pkgs.stdenv.hostPlatform) system;
 
@@ -7,7 +9,7 @@ let
 
   # Load the workspace from uv.lock
   workspace = inputs.uv2nix.lib.workspace.loadWorkspace {
-    workspaceRoot = ../../.;
+    workspaceRoot = ../.;
   };
 
   # Create the python package set with proper overlays

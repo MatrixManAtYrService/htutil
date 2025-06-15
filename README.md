@@ -21,7 +21,7 @@ This project provides a Python wrapper around the [`ht`](https://github.com/andy
 ### Basic Usage with `run` and `snapshot`
 
 ```python
-from ht_util import run, Press
+from htutil import run, Press
 
 # Start a subprocess with terminal emulation
 proc = run("python my_script.py", rows=10, cols=40)
@@ -49,7 +49,7 @@ proc.exit()
 ### Context Manager (Recommended)
 
 ```python
-from ht_util import ht_process, Press
+from htutil import ht_process, Press
 
 with ht_process("python interactive_app.py", rows=5, cols=20) as proc:
     proc.send_keys("input data")
@@ -80,10 +80,10 @@ Use the nix development shell for a consistent environment:
 nix develop
 
 # Run all tests
-uv run pytest -vs tests/test_ht_util.py
+uv run pytest -vs tests/test_htutil.py
 
 # Run specific test
-uv run pytest -vs tests/test_ht_util.py::test_exit_while_subprocess_running
+uv run pytest -vs tests/test_htutil.py::test_exit_while_subprocess_running
 ```
 
 ### Example Test Pattern
@@ -111,9 +111,9 @@ def test_interactive_app():
 ## References for Future Development
 
 - **HT Tool**: See [github.com/andyk/ht](https://github.com/andyk/ht) for the underlying terminal emulator
-- **Test Examples**: See `tests/test_ht_util.py` for comprehensive usage patterns and edge cases
-- **API Documentation**: See `src/ht_util/ht.py` for full implementation details
-- **Key Definitions**: See `src/ht_util/keys.py` for all supported keyboard inputs
+- **Test Examples**: See `tests/test_htutil.py` for comprehensive usage patterns and edge cases
+- **API Documentation**: See `src/htutil/ht.py` for full implementation details
+- **Key Definitions**: See `src/htutil/keys.py` for all supported keyboard inputs
 
 ## Architecture
 
@@ -123,7 +123,7 @@ This project wraps the `ht` tool which:
 3. Provides a JSON API for sending keystrokes and taking snapshots
 4. Supports both interactive use and programmatic control
 
-The Python wrapper (`ht_util`) provides:
+The Python wrapper (`htutil`) provides:
 - High-level API for process management
 - Snapshot objects with text/HTML/raw formats
 - Enum-based key input system

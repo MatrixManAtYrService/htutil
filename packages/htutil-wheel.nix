@@ -3,10 +3,7 @@
 
 let
   inherit (pkgs.stdenv.hostPlatform) system;
-  
-  # Get the ht package from the flake input  
   htPackage = inputs.ht.packages.${system}.ht;
-  
 in
 pkgs.runCommand "htutil-wheel" {
   nativeBuildInputs = with pkgs; [
@@ -28,12 +25,13 @@ pkgs.runCommand "htutil-wheel" {
   cp ${../README.md} README.md
   
   # Remove existing _bundled directory and create fresh one
-  rm -rf src/ht_util/_bundled
-  mkdir -p src/ht_util/_bundled
+  rm -rf src/htutil/_bundled
+  mkdir -p src/htutil/_bundled
   
-  # Add the bundled ht binary
-  cp ${htPackage}/bin/ht src/ht_util/_bundled/ht
-  chmod +x src/ht_util/_bundled/ht
+  # Bundle the ht binary
+  cp ${htPackage}/bin/ht src/htutil/_bundled/ht
+  chmod +x src/htutil/_bundled/ht
+  echo "Bundled ht binary from: ${htPackage}/bin/ht"
   
   # Create output directory
   mkdir -p $out

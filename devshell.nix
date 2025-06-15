@@ -1,8 +1,9 @@
 { pkgs, inputs, system, ... }:
 
 let
-  # Use centralized test vim
-  testVim = pkgs.callPackage ./packages/test-vim.nix { };
+  # Get test vim from lib using Blueprint pattern
+  internal = inputs.self.lib.htutil-lib pkgs;
+  inherit (internal) testVim;
 in
 pkgs.mkShell {
   buildInputs = with pkgs; [
@@ -23,5 +24,6 @@ pkgs.mkShell {
 
   shellHook = ''
     export HTUTIL_TEST_VIM_TARGET="${testVim}/bin/vim"
+    export HTUTIL_HT_BIN="${inputs.ht.packages.${system}.ht}/bin/ht"
   '';
 }

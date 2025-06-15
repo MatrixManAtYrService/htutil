@@ -1,5 +1,5 @@
 """
-Key definitions for ht_util - EXACTLY what ht supports, nothing more.
+Key definitions for htutil - EXACTLY what ht supports, nothing more.
 This module provides a unified Press enum for all supported keys.
 Based on the key parsing logic in ht's stdio.rs file.
 """

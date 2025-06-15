@@ -1,5 +1,5 @@
 """
-Simple test using the ht_util module to make assertions about terminal output.
+Simple test using the htutil module to make assertions about terminal output.
 """
 
 import sys
@@ -7,7 +7,7 @@ import os
 import pytest
 import tempfile
 from textwrap import dedent
-from ht_util import run, Press, ht_process
+from htutil import run, Press, ht_process
 
 
 COLORED_HELLO_WORLD_SCRIPT = """
