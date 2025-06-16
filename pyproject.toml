@@ -24,8 +24,6 @@ classifiers = [
 ]
 dependencies = [
     "ansi2html>=1.9.2",
-    "typer>=0.15.0",
-    "rich>=13.0.0",
 ]
 
 [project.urls]
@@ -51,4 +49,5 @@ python_files = "test_*.py"
 dev = [
     "pytest>=7.0,<8.0",
     "fawltydeps>=0.20.0,<1.0",
+    "pdoc>=14.0.0,<15.0",
 ]

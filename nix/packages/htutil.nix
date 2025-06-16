@@ -1,11 +1,11 @@
-{ inputs, pkgs, perSystem, ... }:
+{ inputs, pkgs, ... }:
 
 let
-  lib = inputs.self.lib.htutil-lib pkgs;
-  inherit (lib) pythonSet workspace;
+  lib = inputs.self.lib pkgs;
+  inherit (lib.pypkg) pythonSet workspace;
 
   # Get project metadata
-  projectToml = builtins.fromTOML (builtins.readFile ../pyproject.toml);
+  projectToml = builtins.fromTOML (builtins.readFile ../../pyproject.toml);
   inherit (projectToml.project) version;
 
   # Create the htutil virtual environment

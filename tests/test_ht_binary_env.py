@@ -38,9 +38,7 @@ class TestHTUtilHTBin:
 
     def test_valid_env_var_is_used(self, monkeypatch, caplog):
         """Test that a valid HTUTIL_HT_BIN path is used."""
-        # Set logging level to capture INFO messages
         with caplog.at_level("INFO", logger="htutil.ht"):
-            # Create a temporary executable file
             with tempfile.NamedTemporaryFile(delete=False) as tmp:
                 tmp.write(b"#!/bin/sh\necho 'mock ht'\n")
                 tmp_path = tmp.name

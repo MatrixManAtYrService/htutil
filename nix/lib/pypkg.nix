@@ -3,18 +3,16 @@
 
 pkgs:
 let
-  inherit (pkgs.stdenv.hostPlatform) system;
-
-  python = pkgs.python3;
+  inherit (pkgs) python3;
 
   # Load the workspace from uv.lock
   workspace = inputs.uv2nix.lib.workspace.loadWorkspace {
-    workspaceRoot = ../.;
+    workspaceRoot = ../../.;
   };
 
   # Create the python package set with proper overlays
   pythonSet = (pkgs.callPackage inputs.pyproject-nix.build.packages {
-    inherit python;
+    python = python3;
   }).overrideScope (
     pkgs.lib.composeManyExtensions [
       inputs.pyproject-build-systems.overlays.default
@@ -22,7 +20,16 @@ let
     ]
   );
 
+  # Build the Python environments that checks will need
+  # Development environment with all dependencies for type checking, testing, etc.
+  pythonEnvWithDev = pythonSet.mkVirtualEnv "htutil-dev-env" workspace.deps.all;
+
 in
 {
   inherit pythonSet workspace;
-} 
+  # Export the Python environments for use in checks
+  inherit pythonEnvWithDev;
+
+  # Backward compatibility export with old name
+  htutilPythonEnvWithDev = pythonEnvWithDev;
+}

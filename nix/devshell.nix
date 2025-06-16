@@ -2,8 +2,8 @@
 
 let
   # Get test vim from lib using Blueprint pattern
-  internal = inputs.self.lib.htutil-lib pkgs;
-  inherit (internal) testVim;
+  lib = inputs.self.lib pkgs;
+  inherit (lib.testcfg) testVim;
 in
 pkgs.mkShell {
   buildInputs = with pkgs; [

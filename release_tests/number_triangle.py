@@ -3,7 +3,8 @@ import sys
 
 
 def main():
-    # Generate a number triangle pattern:
+    # foobar
+    # Generate a number triangle pattern (used by tests)
     # 1
     # 22
     # 333

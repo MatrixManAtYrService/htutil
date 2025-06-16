@@ -169,24 +169,14 @@ def htutil_wheel():
     return wheel_file
 
 
-@pytest.fixture(scope="class")
-def nix_env(request, workspace_root, htutil_wheel):
-    """Create a reusable nix environment for the current Python version."""
-    # Get the python_version from the parametrized test
-    # We need to look at the first test method in the class to get the parameter
-    python_version = None
-
-    # Find the first test method and get its parameter
-    for item in request.node.collect():
-        if hasattr(item, "callspec") and "python_version" in item.callspec.params:
-            python_version = item.callspec.params["python_version"]
-            break
-
-    if python_version is None:
-        pytest.fail("Could not determine python_version parameter")
+@pytest.fixture(scope="function")
+def python_env(request, workspace_root, htutil_wheel):
+    """Create a Python environment for the current test's Python version."""
+    # Get the python_version from the current test's parameters
+    python_version = request.node.callspec.params["python_version"]
 
     env = PythonEnvironment(python_version, workspace_root, htutil_wheel)
-    env.setup()  # Set up once for all tests in this class
+    env.setup()  # Set up for this specific test
 
     yield env
 
@@ -197,16 +187,16 @@ def nix_env(request, workspace_root, htutil_wheel):
 class TestNixPython:
     """Test htutil functionality across Python versions using Python's virtualenv."""
 
-    def test_cli_help(self, python_version, nix_env):
+    def test_cli_help(self, python_version, python_env):
         """Test that htutil --help works."""
-        exit_code, output = nix_env.run_command("htutil --help")
+        exit_code, output = python_env.run_command("htutil --help")
         assert exit_code == 0, f"htutil --help failed: {output}"
         assert "usage: htutil" in output.lower(), "Expected usage message"
         assert "ht terminal emulation" in output.lower(), "Expected description"
 
-    def test_cli_echo_capture(self, python_version, nix_env):
+    def test_cli_echo_capture(self, python_version, python_env):
         """Test capturing echo command output."""
-        exit_code, output = nix_env.run_command(
+        exit_code, output = python_env.run_command(
             f'htutil --rows 5 --cols 40 -- echo "Test from Python {python_version}"'
         )
 
@@ -214,11 +204,11 @@ class TestNixPython:
         assert exit_code == 0, f"htutil echo failed: {output}"
         assert f"Test from Python {python_version}" in output, "Expected echo output"
 
-    def test_cli_terminal_size(self, python_version, nix_env):
+    def test_cli_terminal_size(self, python_version, python_env):
         """Test that terminal size is properly set by checking text wrapping."""
         # Copy the number_triangle.py script to the nix environment's working directory
         script_path = Path(__file__).parent / "number_triangle.py"
-        nix_env.copy_file(script_path, "number_triangle.py")
+        python_env.copy_file(script_path, "number_triangle.py")
 
         # Use 5 rows × 4 cols to test both dimensions
         # The script outputs:
@@ -233,7 +223,7 @@ class TestNixPython:
         #   5555   (wraps to next line)
         #   5      (remaining digit)
         #          (trailing newline)
-        exit_code, output = nix_env.run_command(
+        exit_code, output = python_env.run_command(
             "htutil --rows 5 --cols 4 -- python3 number_triangle.py"
         )
         assert exit_code == 0, f"htutil test failed: {output}"
@@ -259,15 +249,15 @@ class TestNixPython:
         assert lines[2] == "5555", f"Expected '5555', got '{lines[2]}'"
         assert lines[3] == "5", f"Expected '5', got '{lines[3]}'"
 
-    def test_api_import(self, python_version, nix_env):
+    def test_api_import(self, python_version, python_env):
         """Test that htutil can be imported."""
-        exit_code, output = nix_env.run_command(
+        exit_code, output = python_env.run_command(
             "python -c \"import htutil; print(f'Imported: {htutil.__name__}')\""
         )
         assert exit_code == 0, f"Import failed: {output}"
         assert "Imported: htutil" in output
 
-    def test_api_create_ht_instance(self, python_version, nix_env):
+    def test_api_create_ht_instance(self, python_version, python_env):
         """Test creating an ht_process instance."""
         command = """python -c "
 from htutil import ht_process
@@ -278,12 +268,12 @@ with ht_process(['echo', 'test'], rows=10, cols=40) as proc:
     print('ht_process context manager successful')
 "
 """
-        exit_code, output = nix_env.run_command(command)
+        exit_code, output = python_env.run_command(command)
         assert exit_code == 0, f"ht_process creation failed: {output}"
         assert "Created ht_process instance: rows=10, cols=40" in output
         assert "ht_process context manager successful" in output
 
-    def test_api_run_command(self, python_version, nix_env):
+    def test_api_run_command(self, python_version, python_env):
         """Test running a command via Python API."""
         command = f"""python -c "
 from htutil import run
@@ -296,7 +286,7 @@ proc.exit()
 print('Command execution successful')
 "
 """
-        exit_code, output = nix_env.run_command(command)
+        exit_code, output = python_env.run_command(command)
         assert exit_code == 0, f"Command execution failed: {output}"
         assert "Command execution successful" in output
 
