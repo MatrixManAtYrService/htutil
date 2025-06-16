@@ -194,14 +194,17 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1749960891,
-        "narHash": "sha256-IdawQshtnvzv6/llX5IUF3nC4KITf//M38/ewsDWVeU=",
-        "path": "/Users/matt/src/ht",
-        "type": "path"
+        "lastModified": 1749763998,
+        "narHash": "sha256-fs2JNOLZUtIYf2fcQgOLqw2jJn8g/PN+Q3Bqjl6znHM=",
+        "owner": "MatrixManAtYrService",
+        "repo": "ht",
+        "rev": "7909b7465855d2afd80caeede28904cf8b13ed27",
+        "type": "github"
       },
       "original": {
-        "path": "/Users/matt/src/ht",
-        "type": "path"
+        "owner": "MatrixManAtYrService",
+        "repo": "ht",
+        "type": "github"
       }
     },
     "nixpkgs": {

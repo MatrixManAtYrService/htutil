@@ -30,7 +30,7 @@
       };
     };
     ht = {
-      url = "path:/Users/matt/src/ht";
+      url = "github:/MatrixManAtYrService/ht";
     };
   };
 
