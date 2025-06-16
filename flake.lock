@@ -44,8 +44,8 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1750056311,
-        "narHash": "sha256-mRxT4m32jbTfnyxB/1XvNjQfgEWugyLL/wnRvf3O/BM=",
+        "lastModified": 1750098605,
+        "narHash": "sha256-1FI5g15yOUkMmkjM9RUhSfLh4hate6SCnW3UENg+mVA=",
         "path": "/Users/matt/src/checks",
         "type": "path"
       },

@@ -1,4 +1,4 @@
-# Release checks
+# Release checklist
 { flake, pkgs, ... }:
 
 let
@@ -6,6 +6,6 @@ let
   inherit (lib.checks) checksLib releaseChecks;
 in
 checksLib.makeCheckScript ({
-  name = "htutil-checks-release";
+  name = "htutil-checklist-release";
   suiteName = "Release Checks";
 } // releaseChecks)

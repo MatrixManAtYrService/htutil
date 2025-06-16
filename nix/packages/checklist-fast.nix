@@ -1,4 +1,4 @@
-# Fast checks
+# Fast checklist
 { flake, pkgs, ... }:
 
 let
@@ -6,6 +6,6 @@ let
   inherit (lib.checks) checksLib fastChecks;
 in
 checksLib.makeCheckScript ({
-  name = "htutil-checks-fast";
+  name = "htutil-checklist-fast";
   suiteName = "Fast Checks";
 } // fastChecks)

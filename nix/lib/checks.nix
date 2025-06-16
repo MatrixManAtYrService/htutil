@@ -7,7 +7,7 @@ let
 
   # Get the checks library
   checksLib = inputs.checks.lib pkgs;
-  inherit (checksLib) patterns;
+  inherit (checksLib) checkdef;
 
   lib = flake.lib pkgs;
   inherit (lib.pypkg) pythonEnvWithDev;
@@ -19,12 +19,12 @@ let
 
   fastChecks = {
     scriptChecks = {
-      deadnixCheck = patterns.deadnix { inherit src; };
-      statixCheck = patterns.statix { inherit src; };
-      nixpkgsFmtCheck = patterns.nixpkgs-fmt { inherit src; };
-      ruffCheckCheck = patterns.ruff-check { inherit src; };
-      ruffFormatCheck = patterns.ruff-format { inherit src; };
-      pyrightCheck = patterns.pyright {
+      deadnixCheck = checkdef.deadnix { inherit src; };
+      statixCheck = checkdef.statix { inherit src; };
+      nixpkgsFmtCheck = checkdef.nixpkgs-fmt { inherit src; };
+      ruffCheckCheck = checkdef.ruff-check { inherit src; };
+      ruffFormatCheck = checkdef.ruff-format { inherit src; };
+      pyrightCheck = checkdef.pyright {
         inherit src;
         pythonEnv = pythonEnvWithDev;
       };
@@ -35,7 +35,7 @@ let
   fullChecks = {
     inherit (fastChecks) scriptChecks;
     derivationChecks = {
-      pytestTest = patterns.pytest-cached {
+      pytestTest = checkdef.pytest-cached {
         inherit src;
         pythonEnv = pythonEnvWithDev;
         name = "pytest-test";
@@ -49,18 +49,18 @@ let
 
   releaseChecks = {
     scriptChecks = fastChecks.scriptChecks // {
-      fawltydepsCheck = patterns.fawltydeps {
+      fawltydepsCheck = checkdef.fawltydeps {
         inherit src;
         pythonEnv = pythonEnvWithDev;
         ignoreUndeclared = [ "htutil" ];
       };
-      pdocCheck = patterns.pdoc {
+      pdocCheck = checkdef.pdoc {
         inherit src;
         pythonEnv = pythonEnvWithDev;
       };
     };
     derivationChecks = fullChecks.derivationChecks // {
-      pytestRelease = patterns.pytest-cached {
+      pytestRelease = checkdef.pytest-cached {
         inherit src;
         pythonEnv = pythonEnvWithDev;
         name = "pytest-release";

@@ -1,4 +1,4 @@
-# Full checks
+# Full checklist
 { flake, pkgs, ... }:
 
 let
@@ -6,6 +6,6 @@ let
   inherit (lib.checks) checksLib fullChecks;
 in
 checksLib.makeCheckScript ({
-  name = "htutil-checks-full";
+  name = "htutil-checklist-full";
   suiteName = "Full Checks";
 } // fullChecks)
