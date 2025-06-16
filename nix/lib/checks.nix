@@ -5,9 +5,8 @@ pkgs:
 let
   inherit (pkgs.stdenv.hostPlatform) system;
 
-  # Get the checks library
-  checksLib = inputs.checks.lib pkgs;
-  inherit (checksLib) checkdef;
+  # Get the check definitions library
+  checks = inputs.checkdef.lib pkgs;
 
   lib = flake.lib pkgs;
   inherit (lib.pypkg) pythonEnvWithDev;
@@ -19,12 +18,12 @@ let
 
   fastChecks = {
     scriptChecks = {
-      deadnixCheck = checkdef.deadnix { inherit src; };
-      statixCheck = checkdef.statix { inherit src; };
-      nixpkgsFmtCheck = checkdef.nixpkgs-fmt { inherit src; };
-      ruffCheckCheck = checkdef.ruff-check { inherit src; };
-      ruffFormatCheck = checkdef.ruff-format { inherit src; };
-      pyrightCheck = checkdef.pyright {
+      deadnixCheck = checks.deadnix { inherit src; };
+      statixCheck = checks.statix { inherit src; };
+      nixpkgsFmtCheck = checks.nixpkgs-fmt { inherit src; };
+      ruffCheckCheck = checks.ruff-check { inherit src; };
+      ruffFormatCheck = checks.ruff-format { inherit src; };
+      pyrightCheck = checks.pyright {
         inherit src;
         pythonEnv = pythonEnvWithDev;
       };
@@ -35,7 +34,7 @@ let
   fullChecks = {
     inherit (fastChecks) scriptChecks;
     derivationChecks = {
-      pytestTest = checkdef.pytest-cached {
+      pytestTest = checks.pytest-cached {
         inherit src;
         pythonEnv = pythonEnvWithDev;
         name = "pytest-test";
@@ -49,18 +48,18 @@ let
 
   releaseChecks = {
     scriptChecks = fastChecks.scriptChecks // {
-      fawltydepsCheck = checkdef.fawltydeps {
+      fawltydepsCheck = checks.fawltydeps {
         inherit src;
         pythonEnv = pythonEnvWithDev;
         ignoreUndeclared = [ "htutil" ];
       };
-      pdocCheck = checkdef.pdoc {
+      pdocCheck = checks.pdoc {
         inherit src;
         pythonEnv = pythonEnvWithDev;
       };
     };
     derivationChecks = fullChecks.derivationChecks // {
-      pytestRelease = checkdef.pytest-cached {
+      pytestRelease = checks.pytest-cached {
         inherit src;
         pythonEnv = pythonEnvWithDev;
         name = "pytest-release";
@@ -76,6 +75,6 @@ let
 
 in
 {
-  inherit checksLib;
+  inherit checks;
   inherit fastChecks fullChecks releaseChecks;
 }

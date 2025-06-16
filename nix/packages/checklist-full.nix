@@ -3,9 +3,9 @@
 
 let
   lib = flake.lib pkgs;
-  inherit (lib.checks) checksLib fullChecks;
+  inherit (lib.checks) checks fullChecks;
 in
-checksLib.makeCheckScript ({
+checks.makeCheckScript ({
   name = "htutil-checklist-full";
   suiteName = "Full Checks";
 } // fullChecks)

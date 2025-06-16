@@ -38,19 +38,19 @@
         "type": "github"
       }
     },
-    "checks": {
+    "checkdef": {
       "inputs": {
         "blueprint": "blueprint_2",
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1750098605,
-        "narHash": "sha256-1FI5g15yOUkMmkjM9RUhSfLh4hate6SCnW3UENg+mVA=",
-        "path": "/Users/matt/src/checks",
+        "lastModified": 1750101080,
+        "narHash": "sha256-JbCmZLYj09UvvV8Xo7B1rZ4ZXSYTYfz0FyGrY9Tyvlk=",
+        "path": "/Users/matt/src/checkdef",
         "type": "path"
       },
       "original": {
-        "path": "/Users/matt/src/checks",
+        "path": "/Users/matt/src/checkdef",
         "type": "path"
       }
     },
@@ -362,7 +362,7 @@
     "root": {
       "inputs": {
         "blueprint": "blueprint",
-        "checks": "checks",
+        "checkdef": "checkdef",
         "git-hooks": "git-hooks",
         "ht": "ht",
         "nixpkgs": "nixpkgs_6",

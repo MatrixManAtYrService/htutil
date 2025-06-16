@@ -3,9 +3,9 @@
 
 let
   lib = flake.lib pkgs;
-  inherit (lib.checks) checksLib releaseChecks;
+  inherit (lib.checks) checks releaseChecks;
 in
-checksLib.makeCheckScript ({
+checks.makeCheckScript ({
   name = "htutil-checklist-release";
   suiteName = "Release Checks";
 } // releaseChecks)

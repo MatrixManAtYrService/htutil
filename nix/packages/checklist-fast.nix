@@ -3,9 +3,9 @@
 
 let
   lib = flake.lib pkgs;
-  inherit (lib.checks) checksLib fastChecks;
+  inherit (lib.checks) checks fastChecks;
 in
-checksLib.makeCheckScript ({
+checks.makeCheckScript ({
   name = "htutil-checklist-fast";
   suiteName = "Fast Checks";
 } // fastChecks)
