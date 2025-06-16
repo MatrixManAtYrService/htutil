@@ -54,7 +54,7 @@ from htutil import ht_process, Press
 with ht_process("python interactive_app.py", rows=5, cols=20) as proc:
     proc.send_keys("input data")
     proc.send_keys(Press.ENTER)
-    
+
     snapshot = proc.snapshot()
     assert "expected output" in snapshot.text
     # Automatic cleanup when exiting context
@@ -91,19 +91,19 @@ uv run pytest -vs tests/test_htutil.py::test_exit_while_subprocess_running
 ```python
 def test_interactive_app():
     proc = run("python my_app.py", rows=5, cols=20)
-    
+
     # Initial state
     snapshot = proc.snapshot()
     assert "Welcome" in snapshot.text
-    
+
     # Interact with the app
     proc.send_keys("user input")
     proc.send_keys(Press.ENTER)
-    
+
     # Verify response
     snapshot = proc.snapshot()
     assert "expected response" in snapshot.text
-    
+
     # Clean exit
     proc.exit()
 ```

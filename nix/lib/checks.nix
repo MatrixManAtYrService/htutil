@@ -23,6 +23,10 @@ let
       nixpkgsFmtCheck = checks.nixpkgs-fmt { inherit src; };
       ruffCheckCheck = checks.ruff-check { inherit src; };
       ruffFormatCheck = checks.ruff-format { inherit src; };
+      trimWhitespaceCheck = checks.trim-whitespace {
+        inherit src;
+        filePatterns = [ "*.py" "*.nix" "*.md" "*.txt" "*.yml" "*.yaml" ];
+      };
       pyrightCheck = checks.pyright {
         inherit src;
         pythonEnv = pythonEnvWithDev;
@@ -40,7 +44,7 @@ let
         name = "pytest-test";
         description = "Cached unit tests (tests/ directory)";
         inherit testConfig;
-        includePaths = [ "${src}/src" "${src}/tests" "${src}/pyproject.toml" ];
+        includePatterns = [ "src/**" "tests/**" "pyproject.toml" ];
         testDirs = [ "${src}/tests" ];
       };
     };
@@ -65,7 +69,7 @@ let
         name = "pytest-release";
         description = "Cached release tests (release_tests/ directory)";
         inherit testConfig;
-        includePaths = [ "${src}/src" "${src}/release_tests" "${src}/pyproject.toml" ];
+        includePatterns = [ "src/**" "release_tests/**" "pyproject.toml" ];
         testDirs = [ "${src}/release_tests" ];
         wheelPath = "${htutilWheel}/htutil-0.1.0-py3-none-any.whl";
         wheelPathEnvVar = "HTUTIL_WHEEL_PATH";
