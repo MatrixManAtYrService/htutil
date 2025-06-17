@@ -45,7 +45,7 @@ let
         description = "Cached unit tests (tests/ directory)";
         inherit testConfig;
         includePatterns = [ "src/**" "tests/**" "pyproject.toml" ];
-        testDirs = [ "${src}/tests" ];
+        tests = [ "${src}/tests" ];
       };
     };
   };
@@ -70,7 +70,7 @@ let
         description = "Cached release tests (release_tests/ directory)";
         inherit testConfig;
         includePatterns = [ "src/**" "release_tests/**" "pyproject.toml" ];
-        testDirs = [ "${src}/release_tests" ];
+        tests = [ "${src}/release_tests" ];
         wheelPath = "${htutilWheel}/htutil-0.1.0-py3-none-any.whl";
         wheelPathEnvVar = "HTUTIL_WHEEL_PATH";
       };
