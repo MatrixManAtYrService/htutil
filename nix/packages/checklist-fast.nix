@@ -5,7 +5,7 @@ let
   lib = flake.lib pkgs;
   inherit (lib.checks) checks fastChecks;
 in
-checks.makeCheckScript ({
+checks.runner ({
   name = "htutil-checklist-fast";
   suiteName = "Fast Checks";
 } // fastChecks)
