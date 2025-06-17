@@ -45,13 +45,16 @@
       },
       "locked": {
         "lastModified": 1750140048,
-        "narHash": "sha256-7vXfZQpqs4qFRMzwu0rSpuJFtHR+xwG+y7hUU9O0+24=",
-        "path": "/Users/matt/src/checkdef",
-        "type": "path"
+        "narHash": "sha256-MtibfaHmu+eQl9kUtSFn4gpVHOlqmHn9kPbbDJgwvAc=",
+        "owner": "MatrixManAtYrService",
+        "repo": "checkdef",
+        "rev": "71b8583fa472cf8c0d50847aaa353ffb093a0043",
+        "type": "github"
       },
       "original": {
-        "path": "/Users/matt/src/checkdef",
-        "type": "path"
+        "owner": "MatrixManAtYrService",
+        "repo": "checkdef",
+        "type": "github"
       }
     },
     "flake-compat": {
