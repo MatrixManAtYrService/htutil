@@ -55,7 +55,7 @@ let
       fawltydepsCheck = checks.fawltydeps {
         inherit src;
         pythonEnv = pythonEnvWithDev;
-        ignoreUndeclared = [ "htutil" ];
+        ignoreUndeclared = [ "htutil" "pdoc" "pyright" ];
       };
       pdocCheck = checks.pdoc {
         inherit src;
