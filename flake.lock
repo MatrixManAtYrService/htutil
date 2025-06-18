@@ -44,8 +44,8 @@
         "globset": "globset"
       },
       "locked": {
-        "lastModified": 1750206926,
-        "narHash": "sha256-TndOHNQAQ0+Yxp/Xae+P1khI5lL7ihZunUna9tcIffU=",
+        "lastModified": 1750210136,
+        "narHash": "sha256-hvTDkSWUza/jGSLuFpybgRk8mi2lL1rEXw2KGVi4sYM=",
         "path": "/Users/matt/src/checkdef",
         "type": "path"
       },
