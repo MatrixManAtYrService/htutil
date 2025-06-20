@@ -28,6 +28,8 @@ let
       HTUTIL_TEST_VIM_TARGET = "${testVim}/bin/vim";
       # Make ht binary available in PATH for tests
       PATH = "${inputs.ht.packages.${system}.ht}/bin:$PATH";
+      # Point htutil directly to the ht binary to avoid warnings
+      HTUTIL_HT_BIN = "${inputs.ht.packages.${system}.ht}/bin/ht";
     };
 
     # Helper to create Python test config with specific Python version
@@ -36,6 +38,8 @@ let
       env = {
         HTUTIL_TEST_VIM_TARGET = "${testVim}/bin/vim";
         PATH = "${inputs.ht.packages.${system}.ht}/bin:$PATH";
+        # Point htutil directly to the ht binary to avoid warnings
+        HTUTIL_HT_BIN = "${inputs.ht.packages.${system}.ht}/bin/ht";
       } // (if pythonPkg != python3 then {
         UV_PYTHON = "${pythonPkg}/bin/python";
       } else { });

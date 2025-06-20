@@ -40,7 +40,15 @@ pkgs.runCommand "htutil-wheel"
   # Build the wheel
   ${pkgs.python312}/bin/python -m build --wheel --outdir $out
 
+  # Find the actual wheel filename for programmatic access
+  WHEEL_FILE=$(ls $out/*.whl | head -1)
+  WHEEL_NAME=$(basename "$WHEEL_FILE")
+
+  # Store the wheel filename for programmatic access
+  echo "$WHEEL_NAME" > "$out/wheel-filename.txt"
+  echo "$WHEEL_FILE" > "$out/wheel-path.txt"
+
   # Show what was built
-  echo "Built wheel package:"
+  echo "Built wheel package: $WHEEL_NAME"
   ls -la $out/
 ''
