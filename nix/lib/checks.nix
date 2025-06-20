@@ -37,8 +37,43 @@ let
           (filteredWorkspace.mkPyprojectOverlay { sourcePreference = "wheel"; })
         ]
       );
+
+      # Create base Python environment
+      basePythonEnv = pythonSetFiltered.mkVirtualEnv "htutil-dev-env" filteredWorkspace.deps.all;
+
+      # Add test dependencies to the environment
+      testEnv = pkgs.buildEnv {
+        name = "htutil-test-env";
+        paths = [ basePythonEnv ] ++ testConfig.baseDeps;
+      };
     in
-    pythonSetFiltered.mkVirtualEnv "htutil-dev-env" filteredWorkspace.deps.all;
+    testEnv;
+
+  # Release environment builder that includes multiple Python versions and wheel setup
+  buildReleaseEnv = filteredSrc:
+    let
+      # Get the base Python environment
+      basePythonEnv = buildPythonEnv filteredSrc;
+
+      # Create a wrapper that provides python3.10, python3.11, python3.12 commands
+      pythonVersions = pkgs.runCommand "python-versions" { } ''
+        mkdir -p $out/bin
+        ln -s ${pkgs.python310}/bin/python $out/bin/python3.10
+        ln -s ${pkgs.python311}/bin/python $out/bin/python3.11
+        ln -s ${pkgs.python312}/bin/python $out/bin/python3.12
+      '';
+
+      # Create an environment that includes the wheel and sets up environment variables
+      releaseEnv = pkgs.buildEnv {
+        name = "htutil-release-env";
+        paths = [
+          basePythonEnv
+          pythonVersions
+          # Don't include the individual Python packages to avoid conflicts
+        ];
+      };
+    in
+    releaseEnv;
 
   fastChecks = {
     scriptChecks = {
@@ -66,7 +101,7 @@ let
         inherit src;
         envBuilder = buildPythonEnv;
         name = "pytest-test";
-        description = "Cached unit tests (tests/ directory)";
+        description = "Unit tests (tests/ directory)";
         inherit testConfig;
         includePatterns = [ "src/**" "tests/**" "README.md" ];
         tests = [ "${src}/tests" ];
@@ -79,7 +114,7 @@ let
       fawltydepsCheck = checks.fawltydeps {
         inherit src;
         pythonEnv = pythonSet.mkVirtualEnv "htutil-fawltydeps-env" workspace.deps.all;
-        ignoreUndeclared = [ "htutil" "pdoc" "pyright" ];
+        ignoreUndeclared = [ "htutil" "pdoc" "ruff" "pyright" "build" "hatchling" ];
       };
       pdocCheck = checks.pdoc {
         inherit src;
@@ -89,12 +124,13 @@ let
     derivationChecks = fullChecks.derivationChecks // {
       pytestRelease = checks.pytest-env-builder {
         inherit src;
-        envBuilder = buildPythonEnv;
+        envBuilder = buildReleaseEnv;
         name = "pytest-release";
-        description = "Cached release tests (release_tests/ directory)";
+        description = "Release tests with multiple Python versions";
         inherit testConfig;
         includePatterns = [ "src/**" "release_tests/**" "README.md" ];
         tests = [ "${src}/release_tests" ];
+        # Set wheel path via the standard parameters
         wheelPath = "${htutilWheel}/htutil-${version}-py3-none-any.whl";
         wheelPathEnvVar = "HTUTIL_WHEEL_PATH";
       };

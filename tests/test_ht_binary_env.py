@@ -6,6 +6,10 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch
 import stat
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pytest import MonkeyPatch, LoggingPlugin
 
 # Import the actual get_ht_binary function from ht.py
 from htutil.ht import get_ht_binary
@@ -14,7 +18,9 @@ from htutil.ht import get_ht_binary
 class TestHTUtilHTBin:
     """Test cases for HTUTIL_HT_BIN environment variable handling."""
 
-    def test_no_env_var_no_bundled_uses_system_ht(self, monkeypatch, caplog):
+    def test_no_env_var_no_bundled_uses_system_ht(
+        self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin"
+    ) -> None:
         """Test that without HTUTIL_HT_BIN and no bundled ht, system ht is used."""
         # Set logging level to capture WARNING messages
         with caplog.at_level("WARNING", logger="htutil.ht"):
@@ -34,9 +40,14 @@ class TestHTUtilHTBin:
                     assert (
                         "Using system ht binary from PATH: /usr/bin/ht" in caplog.text
                     )
-                    assert "Version and compatibility are not guaranteed" in caplog.text
+                    assert (
+                        "Expect trouble if this ht does not have the changes in this fork"
+                        in caplog.text
+                    )
 
-    def test_valid_env_var_is_used(self, monkeypatch, caplog):
+    def test_valid_env_var_is_used(
+        self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin"
+    ) -> None:
         """Test that a valid HTUTIL_HT_BIN path is used."""
         with caplog.at_level("INFO", logger="htutil.ht"):
             with tempfile.NamedTemporaryFile(delete=False) as tmp:
@@ -58,7 +69,7 @@ class TestHTUtilHTBin:
             finally:
                 os.unlink(tmp_path)
 
-    def test_nonexistent_env_var_raises_error(self, monkeypatch):
+    def test_nonexistent_env_var_raises_error(self, monkeypatch: "MonkeyPatch") -> None:
         """Test that nonexistent HTUTIL_HT_BIN path raises helpful error."""
         # Set environment variable to nonexistent path
         nonexistent_path = "/nonexistent/path/to/ht"
@@ -74,7 +85,9 @@ class TestHTUtilHTBin:
         )
         assert "Please check that the path exists and is executable" in error_msg
 
-    def test_non_executable_env_var_raises_error(self, monkeypatch):
+    def test_non_executable_env_var_raises_error(
+        self, monkeypatch: "MonkeyPatch"
+    ) -> None:
         """Test that non-executable HTUTIL_HT_BIN path raises helpful error."""
         # Create a temporary non-executable file
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
@@ -100,7 +113,9 @@ class TestHTUtilHTBin:
         finally:
             os.unlink(tmp_path)
 
-    def test_bundled_ht_used_when_present(self, monkeypatch, caplog):
+    def test_bundled_ht_used_when_present(
+        self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin"
+    ) -> None:
         """Test that bundled ht is used when present and no env var is set."""
         # Set logging level to capture INFO messages
         with caplog.at_level("INFO", logger="htutil.ht"):
@@ -112,11 +127,12 @@ class TestHTUtilHTBin:
                 # Mock the files() method and resource access
                 mock_ht_resource = mock_files.return_value.__truediv__.return_value
                 mock_ht_resource.is_file.return_value = True
-                mock_ht_resource.read_bytes.return_value = b"fake ht binary"
 
-                # Mock tempfile creation
-                with patch("tempfile.NamedTemporaryFile") as mock_temp:
-                    mock_temp.return_value.__enter__.return_value.name = "/tmp/ht_test"
+                # Mock the as_file context manager
+                with patch("importlib.resources.as_file") as mock_as_file:
+                    mock_context = mock_as_file.return_value
+                    mock_context.__enter__.return_value = "/tmp/ht_test"
+                    mock_context.__exit__.return_value = None
 
                     # Mock os.chmod
                     with patch("os.chmod"):
@@ -124,7 +140,9 @@ class TestHTUtilHTBin:
                         assert result == "/tmp/ht_test"
                         assert "Using bundled ht binary" in caplog.text
 
-    def test_env_var_overrides_bundled(self, monkeypatch, caplog):
+    def test_env_var_overrides_bundled(
+        self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin"
+    ) -> None:
         """Test that HTUTIL_HT_BIN overrides bundled ht when both exist."""
         # Set logging level to capture INFO messages
         with caplog.at_level("INFO", logger="htutil.ht"):
@@ -143,7 +161,7 @@ class TestHTUtilHTBin:
                 # Mock the bundled ht to also exist
                 with patch("pathlib.Path.exists") as mock_exists:
 
-                    def exists_side_effect(path):
+                    def exists_side_effect(path: Path) -> bool:
                         if "_bundled" in str(path):
                             return True
                         return os.path.exists(path)
@@ -160,7 +178,9 @@ class TestHTUtilHTBin:
             finally:
                 os.unlink(tmp_path)
 
-    def test_empty_env_var_ignored(self, monkeypatch, caplog):
+    def test_empty_env_var_ignored(
+        self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin"
+    ) -> None:
         """Test that empty HTUTIL_HT_BIN is ignored and falls back to system ht."""
         # Set logging level to capture WARNING messages
         with caplog.at_level("WARNING", logger="htutil.ht"):
@@ -179,9 +199,12 @@ class TestHTUtilHTBin:
                     assert (
                         "Using system ht binary from PATH: /usr/bin/ht" in caplog.text
                     )
-                    assert "Version and compatibility are not guaranteed" in caplog.text
+                    assert (
+                        "Expect trouble if this ht does not have the changes in this fork"
+                        in caplog.text
+                    )
 
-    def test_helpful_error_message_content(self, monkeypatch):
+    def test_helpful_error_message_content(self, monkeypatch: "MonkeyPatch") -> None:
         """Test that helpful error message is shown when no ht binary is found anywhere."""
         # Ensure HTUTIL_HT_BIN is not set
         monkeypatch.delenv("HTUTIL_HT_BIN", raising=False)

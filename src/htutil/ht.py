@@ -1,15 +1,22 @@
-import subprocess
 import json
-from time import sleep
-import time
-import threading
-import queue
+import logging
 import os
+import queue
+import shutil
 import signal
+import subprocess
+import threading
+import time
 from contextlib import contextmanager
-from typing import Optional, List, Union, NamedTuple
-from .keys import KeyInput, keys_to_strings, Press
+from dataclasses import dataclass
+from pathlib import Path
+from queue import Queue
+from time import sleep
+from typing import List, Optional, Union, Dict, Any
+
 from ansi2html import Ansi2HTMLConverter
+
+from .keys import KeyInput, Press, keys_to_strings
 
 
 def get_ht_binary():
@@ -24,11 +31,6 @@ def get_ht_binary():
     Raises:
         RuntimeError: If ht binary cannot be found anywhere
     """
-    import os
-    import shutil
-    from pathlib import Path
-    import logging
-
     logger = logging.getLogger(__name__)
 
     # 1. Check for user-specified ht binary override
@@ -47,46 +49,37 @@ def get_ht_binary():
     # 2. Check for bundled ht binary using importlib.resources (production)
     try:
         from importlib import resources as impresources
+
         from . import _bundled
-        import tempfile
-        import atexit
 
         bundled_files = impresources.files(_bundled)
         ht_resource = bundled_files / "ht"
 
         if ht_resource.is_file():
             logger.info("Using bundled ht binary")
-            # Read the binary data
-            ht_data = ht_resource.read_bytes()
+            # Use as_file() to get a file path that can be executed
+            # This avoids temporary files when possible (e.g., when not in a zip)
+            ht_file_context = impresources.as_file(ht_resource)
+            ht_path = str(ht_file_context.__enter__())
 
-            # Create a temporary executable file
-            with tempfile.NamedTemporaryFile(
-                mode="wb", prefix="ht_", delete=False
-            ) as tmp_file:
-                tmp_file.write(ht_data)
-                tmp_path = tmp_file.name
+            # Make sure it's executable
+            os.chmod(ht_path, 0o755)
 
-            # Make it executable
-            os.chmod(tmp_path, 0o755)
-
-            # Register cleanup on exit
-            atexit.register(
-                lambda: os.unlink(tmp_path) if os.path.exists(tmp_path) else None
-            )
-
-            return tmp_path
+            # Note: We intentionally don't call __exit__ here because we need
+            # the file to remain available for the lifetime of the process
+            return ht_path
 
     except (ImportError, FileNotFoundError, AttributeError):
-        # No bundled binary available - this is normal in development mode
+        # No bundled binary available - this is normal in htutil's nix devshell
         logger.debug("No bundled ht binary found, falling back to system PATH")
 
-    # 3. Fall back to system 'ht' command (development mode)
+    # 3. Fall back to system 'ht' command (htutil's nix devshell)
     system_ht = shutil.which("ht")
     if system_ht:
         logger.warning(
             f"Using system ht binary from PATH: {system_ht}. "
-            "Version and compatibility are not guaranteed. "
-            "Consider using a wheel distribution with bundled ht for production."
+            "Expect trouble if this ht does not have the changes in this fork: https://github.com/MatrixManAtYrService/ht. "
+            "Consider using a wheel distribution of htutil, which bundles the forked ht."
         )
         return system_ht
 
@@ -137,7 +130,8 @@ def clean_ansi_for_html(ansi_text: str) -> str:
     return ansi_text
 
 
-class SnapshotResult(NamedTuple):
+@dataclass
+class SnapshotResult:
     """Result from taking a terminal snapshot."""
 
     text: str  # Plain text without ANSI codes
@@ -151,12 +145,26 @@ class SubprocessController:
     def __init__(self, pid: Optional[int] = None):
         self.pid = pid
         self.exit_code: Optional[int] = None
+        self._termination_initiated = False  # Track if we initiated termination
+
+    def poll(self) -> Optional[int]:
+        """Check if the subprocess is still running."""
+        if self.pid is None:
+            return self.exit_code
+        try:
+            os.kill(self.pid, 0)
+            return None  # Process is still running
+        except OSError:
+            return self.exit_code  # Process has exited
 
     def terminate(self) -> None:
         """Terminate the subprocess."""
         if self.pid is None:
             raise RuntimeError("No subprocess PID available")
         try:
+            logger = logging.getLogger(__name__)
+            logger.debug(f"Sending SIGTERM to process {self.pid}")
+            self._termination_initiated = True
             os.kill(self.pid, signal.SIGTERM)
         except OSError:
             # Process may have already exited
@@ -167,6 +175,9 @@ class SubprocessController:
         if self.pid is None:
             raise RuntimeError("No subprocess PID available")
         try:
+            logger = logging.getLogger(__name__)
+            logger.debug(f"Sending SIGKILL to process {self.pid}")
+            self._termination_initiated = True
             os.kill(self.pid, signal.SIGKILL)
         except OSError:
             # Process may have already exited
@@ -197,10 +208,35 @@ class SubprocessController:
                     return None  # Timeout reached
 
                 time.sleep(0.1)
-
             except OSError:
-                # Process no longer exists (finished)
-                self.exit_code = 0  # We can't easily get the real exit code
+                # Process has exited
+                # Try to get the actual exit code using waitpid
+                try:
+                    _, status = os.waitpid(self.pid, os.WNOHANG)
+                    if os.WIFEXITED(status):
+                        self.exit_code = os.WEXITSTATUS(status)
+                        logger = logging.getLogger(__name__)
+                        if self._termination_initiated:
+                            logger.debug(
+                                f"Process {self.pid} has exited after termination signal with code {self.exit_code}"
+                            )
+                        else:
+                            logger.debug(
+                                f"Process {self.pid} has exited on its own with code {self.exit_code}"
+                            )
+                    elif os.WIFSIGNALED(status):
+                        signal_num = os.WTERMSIG(status)
+                        self.exit_code = 128 + signal_num  # Standard convention
+                        logger = logging.getLogger(__name__)
+                        logger.debug(
+                            f"Process {self.pid} terminated by signal {signal_num}, exit code {self.exit_code}"
+                        )
+                    else:
+                        self.exit_code = 1  # Default error code
+                except OSError:
+                    # Couldn't get exit status, assume normal exit
+                    if self.exit_code is None:
+                        self.exit_code = 0
                 return self.exit_code
 
 
@@ -214,14 +250,14 @@ class HTProcess:
 
     def __init__(
         self,
-        proc,
-        event_queue,
-        command=None,
-        pid=None,
-        rows=None,
-        cols=None,
-        no_exit=False,
-    ):
+        proc: subprocess.Popen[str],
+        event_queue: Queue[Dict[str, Any]],
+        command: Optional[str] = None,
+        pid: Optional[int] = None,
+        rows: Optional[int] = None,
+        cols: Optional[int] = None,
+        no_exit: bool = False,
+    ) -> None:
         """
         Initialize the HTProcess wrapper.
 
@@ -240,20 +276,19 @@ class HTProcess:
         )  # Controller for the monitored subprocess
         self.event_queue = event_queue
         self.command = command
-        self.output_events = []
-        self.unknown_events = []  # Store unknown events
-        self.latest_snapshot = None  # Store latest snapshot text
+        self.output_events: List[Dict[str, Any]] = []
+        self.unknown_events: List[Dict[str, Any]] = []  # Store unknown events
+        self.latest_snapshot: Optional[str] = None  # Store latest snapshot text
         self.start_time = time.time()
-        self.exit_code = None
+        self.exit_code: Optional[int] = None
         self.rows = rows
         self.cols = cols
         self.no_exit = no_exit
         self.subprocess_exited = False  # Track if subprocess has exited
+        self.output: List[str] = []  # Initialize output list
 
-    @property
-    def output(self):
+    def get_output(self) -> List[Dict[str, Any]]:
         """Return list of output events for backward compatibility."""
-        # Debug: let's see what we actually have
         if not self.output_events:
             return []
         return [event for event in self.output_events if event.get("type") == "output"]
@@ -277,10 +312,11 @@ class HTProcess:
         """
         key_strings = keys_to_strings(keys)
 
-        self.proc.stdin.write(
-            json.dumps({"type": "sendKeys", "keys": key_strings}) + "\n"
-        )
-        self.proc.stdin.flush()
+        if self.proc.stdin is not None:
+            self.proc.stdin.write(
+                json.dumps({"type": "sendKeys", "keys": key_strings}) + "\n"
+            )
+            self.proc.stdin.flush()
         sleep(0.1)
 
     def snapshot(self, timeout: float = 5.0) -> SnapshotResult:
@@ -297,8 +333,11 @@ class HTProcess:
             )
 
         try:
-            self.proc.stdin.write(json.dumps({"type": "takeSnapshot"}) + "\n")
-            self.proc.stdin.flush()
+            if self.proc.stdin is not None:
+                self.proc.stdin.write(json.dumps({"type": "takeSnapshot"}) + "\n")
+                self.proc.stdin.flush()
+            else:
+                raise RuntimeError("ht process stdin is not available")
         except BrokenPipeError as e:
             raise RuntimeError(
                 f"Cannot communicate with ht process (broken pipe). Process may have exited. Poll result: {self.proc.poll()}"
@@ -402,6 +441,8 @@ class HTProcess:
     def terminate(self) -> None:
         """Terminate the ht process itself."""
         try:
+            logger = logging.getLogger(__name__)
+            logger.debug(f"Terminating ht process {self.proc.pid}")
             self.proc.terminate()
         except Exception:
             pass
@@ -409,6 +450,8 @@ class HTProcess:
     def kill(self) -> None:
         """Force kill the ht process itself."""
         try:
+            logger = logging.getLogger(__name__)
+            logger.debug(f"Force killing ht process {self.proc.pid}")
             self.proc.kill()
         except Exception:
             pass
@@ -456,10 +499,7 @@ def run(
     """
 
     # Split the command into arguments if it's a string
-    if isinstance(command, str):
-        cmd_args = command.split()
-    else:
-        cmd_args = command
+    cmd_args = command.split()
 
     # Create the ht command with event subscription
     ht_cmd = [
@@ -481,11 +521,17 @@ def run(
     ht_cmd.extend(cmd_args)
 
     # Create a queue for events
-    event_queue = queue.Queue()
+    event_queue: Queue[Dict[str, Any]] = queue.Queue()
 
     # Create a reader thread to capture ht output
-    def reader_thread(ht_proc, queue_obj, ht_process):
+    def reader_thread(
+        ht_proc: subprocess.Popen[str],
+        queue_obj: Queue[Dict[str, Any]],
+        ht_process: HTProcess,
+    ) -> None:
         while True:
+            if ht_proc.stdout is None:
+                break
             line = ht_proc.stdout.readline()
             if not line:
                 break
@@ -509,15 +555,10 @@ def run(
                         )
             except json.JSONDecodeError:
                 # Check for non-JSON messages that indicate process state
-                if isinstance(line, str):
-                    if "Process exited" in line:
-                        ht_process.subprocess_exited = True
-                        if hasattr(ht_process, "subprocess") and hasattr(
-                            ht_process.subprocess, "_finished"
-                        ):
-                            ht_process.subprocess._finished = True
-                            ht_process.subprocess.exit_code = 0  # Assume success
-                            ht_process._subprocess_finished = True
+                if "Process exited" in line:
+                    ht_process.subprocess_exited = True
+                    if hasattr(ht_process, "subprocess"):
+                        ht_process.subprocess.exit_code = 0  # Assume success
 
                 queue_obj.put({"type": "raw", "data": {"text": line}})
 

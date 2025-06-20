@@ -45,8 +45,8 @@
         "globset": "globset"
       },
       "locked": {
-        "lastModified": 1750397341,
-        "narHash": "sha256-usl2E9GVkELfza0su0PnXMLR/Equp2dHasAVwjvAZjc=",
+        "lastModified": 1750398038,
+        "narHash": "sha256-EK6pGsSYhPYDUg0m+gLG4on8gPQMUf58zhWt7RPXYjY=",
         "path": "/Users/matt/src/checkdef",
         "type": "path"
       },
@@ -320,11 +320,11 @@
     },
     "nixpkgs_5": {
       "locked": {
-        "lastModified": 1750134718,
-        "narHash": "sha256-v263g4GbxXv87hMXMCpjkIxd/viIF7p3JpJrwgKdNiI=",
+        "lastModified": 1750365781,
+        "narHash": "sha256-XE/lFNhz5lsriMm/yjXkvSZz5DfvKJLUjsS6pP8EC50=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "9e83b64f727c88a7711a2c463a7b16eedb69a84c",
+        "rev": "08f22084e6085d19bcfb4be30d1ca76ecb96fe54",
         "type": "github"
       },
       "original": {

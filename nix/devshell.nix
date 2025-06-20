@@ -7,7 +7,7 @@ let
 in
 pkgs.mkShell {
   buildInputs = with pkgs; [
-    nodejs
+    cargo
     ruff
     python3.pkgs.python-lsp-ruff
     pyright
@@ -18,7 +18,6 @@ pkgs.mkShell {
     statix
     python3
     uv
-    pre-commit
     inputs.ht.packages.${system}.ht
   ];
 

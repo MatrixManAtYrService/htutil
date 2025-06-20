@@ -13,7 +13,6 @@ from textwrap import dedent
 
 import pytest
 
-# Python versions to test
 PYTHON_VERSIONS = ["3.10", "3.11", "3.12"]
 
 
@@ -44,10 +43,11 @@ class PythonEnvironment:
         setup_commands = [
             "#!/bin/bash",
             "set -euo pipefail",
-            f"python -m venv {self.venv_path}",
+            f"python{self.python_version} -m venv {self.venv_path}",
             f"source {self.venv_path}/bin/activate",
             "pip install --upgrade pip",
             f"pip install {self.htutil_wheel}",
+            "python --version",  # Verify we're using the correct Python version
             "echo 'Setup complete for Python {self.python_version}'",
         ]
 
@@ -224,7 +224,7 @@ class TestNixPython:
         #   5      (remaining digit)
         #          (trailing newline)
         exit_code, output = python_env.run_command(
-            "htutil --rows 5 --cols 4 -- python3 number_triangle.py"
+            f"htutil --rows 5 --cols 4 -- python{python_version} number_triangle.py"
         )
         assert exit_code == 0, f"htutil test failed: {output}"
 

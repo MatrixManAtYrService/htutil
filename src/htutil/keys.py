@@ -1,6 +1,5 @@
 """
-Key definitions for htutil - EXACTLY what ht supports, nothing more.
-This module provides a unified Press enum for all supported keys.
+Key definitions for htutil
 Based on the key parsing logic in ht's stdio.rs file.
 """
 

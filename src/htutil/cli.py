@@ -3,12 +3,12 @@ import argparse
 import logging
 import sys
 import time
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Union, Any, Optional
 
-from .ht import run
+from .ht import run, HTProcess
 from .keys import Press
 
-DEFAULTS = {
+DEFAULTS: Dict[str, Union[int, str, float]] = {
     "rows": 20,
     "cols": 50,
     "log_level": "WARNING",
@@ -18,7 +18,9 @@ DEFAULTS = {
 }
 
 
-def send_keys_to_process(proc, keys_str: str, delimiter: str, logger):
+def send_keys_to_process(
+    proc: HTProcess, keys_str: str, delimiter: str, logger: logging.Logger
+) -> None:
     """
     Send a sequence of keys to the subprocess.
 
@@ -36,7 +38,7 @@ def send_keys_to_process(proc, keys_str: str, delimiter: str, logger):
         logger.debug(f"Sending key: {repr(key_str)}")
 
         # Check if subprocess has already exited
-        if hasattr(proc, "subprocess_exited") and proc.subprocess_exited:
+        if proc.subprocess_exited:
             logger.warning(f"Subprocess has exited, cannot send keys: {key_str}")
             return
 
@@ -51,13 +53,13 @@ def send_keys_to_process(proc, keys_str: str, delimiter: str, logger):
             )
 
             proc.send_keys(special_key if special_key else key_str)
-            time.sleep(DEFAULTS["sleep_after_keys"])
+            time.sleep(float(DEFAULTS["sleep_after_keys"]))
         except Exception as e:
             logger.warning(f"Failed to send keys '{key_str}': {e}")
             return
 
 
-def take_and_print_snapshot(proc, logger):
+def take_and_print_snapshot(proc: HTProcess, logger: logging.Logger) -> None:
     """Take a snapshot of the headless terminal and print it to stdout."""
     logger.debug("Taking snapshot...")
 
@@ -83,20 +85,39 @@ def take_and_print_snapshot(proc, logger):
         print("----")
 
 
+class OrderedAction(argparse.Action):
+    """Custom action to preserve order of -k and -s options."""
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Any,
+        option_string: Optional[str] = None,
+    ) -> None:
+        if not hasattr(namespace, "ordered_actions"):
+            setattr(namespace, "ordered_actions", [])
+
+        if option_string in ["-k", "--keys"]:
+            namespace.ordered_actions.append(("keys", values))
+        elif option_string in ["-s", "--snapshot"]:
+            namespace.ordered_actions.append(("snapshot", None))
+
+
 def parse_interleaved_args() -> Tuple[
-    argparse.Namespace, List[Tuple[str, str]], List[str]
+    argparse.Namespace, List[Tuple[str, Optional[str]]], List[str]
 ]:
-    """Parse arguments allowing interleaved -k and --snapshot options."""
+    """Parse arguments allowing interleaved -k/--keys and -s/--snapshot options."""
     parser = argparse.ArgumentParser(
         description="Run a command with ht terminal emulation",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   python -m htutil.cli -- echo hello
-  python -m htutil.cli -k "hello,Enter" --snapshot -- vim
-  python -m htutil.cli -r 30 -c 80 --snapshot -k "ihello,Escape" --snapshot -- vim
+  python -m htutil.cli -k "hello,Enter" -s -- vim
+  python -m htutil.cli -r 30 -c 80 -s -k "ihello,Escape" -s -- vim
 
-The -k and --snapshot options can be used multiple times and will be processed in order.
+The -k/--keys and -s/--snapshot options can be used multiple times and will be processed in order.
         """.strip(),
     )
 
@@ -125,6 +146,26 @@ The -k and --snapshot options can be used multiple times and will be processed i
         default=DEFAULTS["delimiter"],
         help=f"Delimiter for parsing keys (default: '{DEFAULTS['delimiter']}')",
     )
+    parser.add_argument(
+        "-k",
+        "--keys",
+        metavar="KEYS",
+        action=OrderedAction,
+        help="Send keys to the terminal. KEYS is a comma-separated list (default delimiter). Can be used multiple times.",
+    )
+    parser.add_argument(
+        "-s",
+        "--snapshot",
+        action=OrderedAction,
+        nargs=0,
+        help="Take a snapshot of terminal output. Can be used multiple times.",
+    )
+    parser.add_argument(
+        "command",
+        nargs="*",
+        metavar="-- COMMAND [ARGS...]",
+        help="Command to run (must be preceded by --)",
+    )
 
     # Find the -- separator
     try:
@@ -138,29 +179,19 @@ The -k and --snapshot options can be used multiple times and will be processed i
         else:
             parser.error("No command specified after --")
 
-    # Parse basic options
-    basic_args, remaining = parser.parse_known_args(args_before_command)
+    # Parse all arguments
+    args = parser.parse_args(args_before_command)
 
     if not command and not any(arg in sys.argv for arg in ["--help", "-h"]):
         parser.error("No command specified after --")
 
-    # Parse the interleaved -k and --snapshot options
-    actions = []
-    i = 0
-    while i < len(remaining):
-        if remaining[i] == "-k" and i + 1 < len(remaining):
-            actions.append(("keys", remaining[i + 1]))
-            i += 2
-        elif remaining[i] == "--snapshot":
-            actions.append(("snapshot", None))
-            i += 1
-        else:
-            parser.error(f"Unknown argument: {remaining[i]}")
+    # Get the ordered actions, defaulting to empty list if none
+    actions = getattr(args, "ordered_actions", [])
 
-    return basic_args, actions, command
+    return args, actions, command
 
 
-def main():
+def main() -> None:
     """Main CLI function."""
     try:
         basic_args, actions, command = parse_interleaved_args()
@@ -185,13 +216,15 @@ def main():
     try:
         # Run the command
         proc = run(" ".join(command), rows=basic_args.rows, cols=basic_args.cols)
-        time.sleep(DEFAULTS["sleep_after_start"])  # Let command start
+        time.sleep(float(DEFAULTS["sleep_after_start"]))  # Let command start
 
         # Process actions in order
         for action_type, action_value in actions:
             if action_type == "keys":
-                send_keys_to_process(proc, action_value, basic_args.delimiter, logger)
-                time.sleep(DEFAULTS["sleep_after_start"])
+                send_keys_to_process(
+                    proc, action_value or "", basic_args.delimiter, logger
+                )
+                time.sleep(float(DEFAULTS["sleep_after_start"]))
             elif action_type == "snapshot":
                 take_and_print_snapshot(proc, logger)
 
@@ -211,7 +244,7 @@ def main():
         sys.exit(1)
 
 
-def cli():
+def cli() -> None:
     """Entry point for the CLI."""
     main()
 

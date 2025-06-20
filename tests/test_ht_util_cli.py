@@ -1,3 +1,5 @@
+"""Tests for the htutil command line interface via subprocess."""
+
 import logging
 import os
 import re
@@ -7,32 +9,31 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from textwrap import dedent
-from typing import List, Union
+from typing import List, Union, Generator
 
 import pytest
 
 src_path = Path(__file__).parent.parent / "src"
 
-env = os.environ.copy()
-if "PYTHONPATH" in env:
-    env["PYTHONPATH"] = f"{src_path}:{env['PYTHONPATH']}"
-else:
-    env["PYTHONPATH"] = str(src_path)
+env = {**os.environ, "HTUTIL_HT_BIN": os.environ.get("HTUTIL_HT_BIN", "")}
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class Pattern:
-    lines: List[Union[str, re.Pattern]]
+    lines: List[Union[str, re.Pattern[str]]]
 
 
 def terminal_contents(
     *, actual_snapshots: str, expected_patterns: List[Pattern]
 ) -> bool:
-    actual_lines = actual_snapshots.splitlines()
+    """Check if the actual snapshot matches the expected patterns in order."""
+    actual_lines = actual_snapshots.strip().split("\n")
 
+    pattern_idx = 0
     for pattern_idx, pattern in enumerate(expected_patterns):
+        # Check if there are enough lines left for this pattern
         if len(actual_lines) < len(pattern.lines):
             print(
                 f"Pattern {pattern_idx}: Not enough actual lines. Expected {len(pattern.lines)}, got {len(actual_lines)}"
@@ -70,7 +71,7 @@ def terminal_contents(
     return True
 
 
-def test_echo_hello():
+def test_echo_hello() -> None:
     cmd = [
         *(sys.executable, "-m"),
         "htutil.cli",
@@ -87,7 +88,7 @@ def test_echo_hello():
     assert actual_output == expected_output
 
 
-def test_keys_after_subproc_exit():
+def test_keys_after_subproc_exit() -> None:
     cmd = [
         *(sys.executable, "-m"),
         "htutil.cli",
@@ -108,7 +109,7 @@ def test_keys_after_subproc_exit():
 
 
 @pytest.fixture
-def greeter_script():
+def greeter_script() -> Generator[str, None, None]:
     with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmp:
         tmp.write(
             dedent(
@@ -127,7 +128,7 @@ def greeter_script():
         pass
 
 
-def test_send_keys(greeter_script):
+def test_send_keys(greeter_script: str) -> None:
     cmd = [
         *(sys.executable, "-m"),
         "htutil.cli",
@@ -145,7 +146,7 @@ def test_send_keys(greeter_script):
     assert actual_output == expected_output
 
 
-def test_vim():
+def test_vim() -> None:
     try:
         vim_path = os.environ["HTUTIL_TEST_VIM_TARGET"]
     except KeyError:
@@ -185,7 +186,7 @@ def test_vim():
                     "~",
                     "~               VIM - Vi IMproved",
                     "~",
-                    "~                version 9.1.1336",
+                    re.compile(r"~ *version.*"),  # version number
                     "~            by Bram Moolenaar et al.",
                     "~  Vim is open source and freely distributable",
                     "~",
