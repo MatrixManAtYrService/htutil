@@ -40,10 +40,12 @@ Or maybe like this:
 Vim: Warning: Output is not to a terminal
 ```
 
-Vim is warning us of our first mistake, which was assuming that vim is writing to stdout (it's writing to `/dev/tty`).
+Vim is warning us of our first mistake:
+It isn't writing to stdout, where `grep` is reading, it's writing to `/dev/tty`.
 
-But the trickier problem is that it's not writing line-by-line but rather using ANSI escape codes to control the output.
-If you captured what vim is writing you'd see something like this:
+But the trickier part is that it's not writing line-by-line.
+Instead it's using ANSI escape codes to control the terminal display.
+If you captured what vim is writing, you'd see something like this:
 
 ```
 Vi IMproved[6;37Hversion 9.0.2136[7;33Hby Bram Moolenaar et al.[8;24HVim is open source and freely distributable[10;32HHelp poor children in Uganda!
