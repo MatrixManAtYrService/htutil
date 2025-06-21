@@ -8,16 +8,28 @@ on:
       - '*'
 
 jobs:
-  hello:
+  test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Hello on main branch push
-        if: github.ref == 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')
-        run: echo "hello world"
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v13
 
-      - name: Hello on tag push
+      - name: Cache Nix store
+        uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: ${{ runner.os }}-nix-${{ hashFiles('flake.lock', 'flake.nix', 'pyproject.toml', 'src/**', 'tests/**', 'nix/**') }}
+          restore-prefixes-first-match: ${{ runner.os }}-nix-
+          paths: |
+            ~/.cache/nix
+            /nix/store
+
+      - name: Run full checklist on main branch
+        if: github.ref == 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')
+        run: nix run .#checklist-full
+
+      - name: Run release checklist on tag
         if: startsWith(github.ref, 'refs/tags/')
-        run: echo "hello ${{ github.ref_name }}" 
+        run: nix run .#checklist-release 
