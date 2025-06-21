@@ -4,8 +4,9 @@ htutil programatically captures the appearance of a terminal application.
 
 !["htutil taking a snapshot of a vim session"](improved.png)
 
-It handles the ANSI control sequences and gives you a human-friendly string instead.
-It wraps [a lightly modified version of `ht`](https://github.com/MatrixManAtYrService/ht).
+It's a wrapper around [a lightly modified version of `ht`](https://github.com/MatrixManAtYrService/ht).
+Which handles ANSI control sequences and gives you a friendly string instead.
+
 
 You can run `htutil` at the command line, or you can use python to `import htuil`.
 
