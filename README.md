@@ -52,8 +52,6 @@ This makes working with `vim`'s actual output quite challenging.
 
 [ht](https://github.com/andyk/ht) simplifies this by connecting a subprocess (`vim` in this case) to a fake terminal.
 It lets you see how the output is rendered, rather than working with the output prior to rendering.
-It simplifies testing significantly.
-
 
 
 ## htutil CLI
