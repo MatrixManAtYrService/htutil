@@ -4,6 +4,17 @@
 let
   inherit (pkgs.stdenv.hostPlatform) system;
   htPackage = inputs.ht.packages.${system}.ht;
+  
+  # Platform-specific wheel tags based on the target system
+  platformTag = {
+    "x86_64-linux" = "linux_x86_64";
+    "aarch64-linux" = "linux_aarch64";
+    "x86_64-darwin" = "macosx_10_9_x86_64";
+    "aarch64-darwin" = "macosx_11_0_arm64";
+  }.${system} or "any";
+  
+  # ABI tag - use cp312 since we're building with Python 3.12
+  abiTag = if platformTag == "any" then "none" else "cp312";
 in
 pkgs.runCommand "htty-wheel"
 {
@@ -40,15 +51,26 @@ pkgs.runCommand "htty-wheel"
   # Build the wheel
   ${pkgs.python312}/bin/python -m build --wheel --outdir $out
 
-  # Find the actual wheel filename for programmatic access
-  WHEEL_FILE=$(ls $out/*.whl | head -1)
-  WHEEL_NAME=$(basename "$WHEEL_FILE")
-
+  # Find the generated wheel and rename it with correct platform tags
+  ORIGINAL_WHEEL=$(ls $out/*.whl | head -1)
+  ORIGINAL_NAME=$(basename "$ORIGINAL_WHEEL")
+  
+  # Extract version from the original filename
+  VERSION=$(echo "$ORIGINAL_NAME" | sed 's/htty-\([^-]*\)-.*/\1/')
+  
+  # Create the new platform-specific filename
+  NEW_NAME="htty-$VERSION-py3-${abiTag}-${platformTag}.whl"
+  NEW_WHEEL="$out/$NEW_NAME"
+  
+  # Rename the wheel
+  mv "$ORIGINAL_WHEEL" "$NEW_WHEEL"
+  
   # Store the wheel filename for programmatic access
-  echo "$WHEEL_NAME" > "$out/wheel-filename.txt"
-  echo "$WHEEL_FILE" > "$out/wheel-path.txt"
+  echo "$NEW_NAME" > "$out/wheel-filename.txt"
+  echo "$NEW_WHEEL" > "$out/wheel-path.txt"
 
   # Show what was built
-  echo "Built wheel package: $WHEEL_NAME"
+  echo "Built wheel package: $NEW_NAME"
+  echo "Platform-specific wheel created for: ${system} -> ${platformTag}"
   ls -la $out/
 ''
