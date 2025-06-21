@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "Your Name", email = "your.email@example.com"},
+    {name = "Matt Rixman", email = "MatrixManAtYrService@users.noreply.github.com"},
 ]
 keywords = ["terminal", "emulator", "testing", "cli"]
 classifiers = [
@@ -27,9 +27,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/htutil"
-Repository = "https://github.com/yourusername/htutil"
-"Bug Tracker" = "https://github.com/yourusername/htutil/issues"
+Homepage = "https://github.com/MatrixManAtYrService/htutil"
+Repository = "https://github.com/MatrixManAtYrService/htutil"
+"Bug Tracker" = "https://github.com/MatrixManAtYrService/htutil/issues"
 
 [build-system]
 requires = ["hatchling"]
@@ -57,11 +57,9 @@ dev = [
 ]
 
 [tool.ruff]
-# Set line length to something more reasonable
 line-length = 120
 
 [tool.ruff.lint]
-# Enable import sorting (isort) rules
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -69,17 +67,14 @@ select = [
     "I",   # isort (import sorting)
 ]
 
-# Auto-fix import sorting and other fixable issues
 fixable = ["ALL"]
 
 [tool.ruff.lint.isort]
-# Configure import sorting behavior
 known-first-party = ["htutil"]
 force-single-line = false
 combine-as-imports = true
 
 [tool.pyright]
-# Make pyright stricter for source code only
 typeCheckingMode = "strict"
 reportMissingTypeStubs = "error"
 reportUnknownMemberType = "error"
@@ -93,10 +88,8 @@ reportUntypedClassDecorator = "error"
 reportUntypedBaseClass = "error"
 reportUntypedNamedTuple = "error"
 
-# Focus on source code directory
 include = ["src"]
 
-# Files to exclude from type checking entirely
 exclude = [
     "tests/**",
     "release_tests/**",
