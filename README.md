@@ -35,27 +35,22 @@ Or maybe like this:
 
 ```bash
 ❯ vim | grep IMproved
-Vim: Warning: Output is not to a terminal
 ```
 
-Vim is warning us of our first mistake:
-It isn't writing to stdout, where `grep` is reading, it's writing to `/dev/tty`.
-
-But the trickier part is that it's not writing line-by-line.
-Instead it's using ANSI escape codes to control the terminal display.
-If you captured what vim is writing, you'd see something like this:
+But these approaches won't work.
+If you captured vim's output you'd see that it looks quite different than what you see in your terminal:
 
 ```
 Vi IMproved[6;37Hversion 9.0.2136[7;33Hby Bram Moolenaar et al.[8;24HVim is open source and freely distributable[10;32HHelp poor children in Uganda!
 ```
 
-This makes working with `vim`'s actual output quite challenging.
-[ht](https://github.com/andyk/ht) can provide snapshots of the headless terminal so you can work with something friendlier.
+[ht](https://github.com/andyk/ht) reads strings like the one above and turns them into strings like the ones you're used to seeing in a terminal.
+`htutil` provides a convenient way to use `ht`
 
 ## htutil CLI
 
 Working with `ht` is a bit like having a chat session with a terminal.
-You make requests by writing JSON to stdin, requests like "press key" or "take snapshot".
+You make requests by writing JSON to stdin, requests like "press escape" or "take snapshot".
 You get responses as more JSON from stdout.
 
 The `htutil` CLI is not interactive like this.
