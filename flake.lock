@@ -47,15 +47,15 @@
       "locked": {
         "lastModified": 1750490303,
         "narHash": "sha256-ZwPf3oSmtACBmods73rLkVAdKFXN6UjCTlpSlNaQSGM=",
-        "ref": "refs/heads/main",
+        "owner": "MatrixManAtYrService",
+        "repo": "checkdef",
         "rev": "d495de44ff301669370add32a6ab31cf983788c3",
-        "revCount": 42,
-        "type": "git",
-        "url": "file:///Users/matt/src/checkdef"
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "file:///Users/matt/src/checkdef"
+        "owner": "MatrixManAtYrService",
+        "repo": "checkdef",
+        "type": "github"
       }
     },
     "checkdef-demo": {
