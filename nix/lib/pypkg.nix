@@ -22,7 +22,7 @@ let
 
   # Build the Python environments that checks will need
   # Development environment with all dependencies for type checking, testing, etc.
-  pythonEnvWithDev = pythonSet.mkVirtualEnv "htutil-dev-env" workspace.deps.all;
+  pythonEnvWithDev = pythonSet.mkVirtualEnv "htty-dev-env" workspace.deps.all;
 
 in
 {
@@ -31,5 +31,5 @@ in
   inherit pythonEnvWithDev;
 
   # Backward compatibility export with old name
-  htutilPythonEnvWithDev = pythonEnvWithDev;
+  httyPythonEnvWithDev = pythonEnvWithDev;
 }

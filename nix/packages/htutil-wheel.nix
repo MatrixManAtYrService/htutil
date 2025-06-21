@@ -1,11 +1,11 @@
-# Build htutil wheel with bundled ht binary
+# Build htty wheel with bundled ht binary
 { inputs, pkgs, ... }:
 
 let
   inherit (pkgs.stdenv.hostPlatform) system;
   htPackage = inputs.ht.packages.${system}.ht;
 in
-pkgs.runCommand "htutil-wheel"
+pkgs.runCommand "htty-wheel"
 {
   nativeBuildInputs = with pkgs; [
     python312
@@ -26,12 +26,12 @@ pkgs.runCommand "htutil-wheel"
   cp ${../../README.md} README.md
 
   # Remove existing _bundled directory and create fresh one
-  rm -rf src/htutil/_bundled
-  mkdir -p src/htutil/_bundled
+  rm -rf src/htty/_bundled
+  mkdir -p src/htty/_bundled
 
   # Bundle the ht binary
-  cp ${htPackage}/bin/ht src/htutil/_bundled/ht
-  chmod +x src/htutil/_bundled/ht
+  cp ${htPackage}/bin/ht src/htty/_bundled/ht
+  chmod +x src/htty/_bundled/ht
   echo "Bundled ht binary from: ${htPackage}/bin/ht"
 
   # Create output directory

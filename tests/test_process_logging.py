@@ -9,7 +9,7 @@ from io import StringIO
 from textwrap import dedent
 from typing import Any, Callable, Tuple
 
-from htutil import ht_process, run
+from htty import ht_process, run
 
 
 def capture_debug_logs(func: Callable[[], Any]) -> Tuple[Any, str]:
@@ -21,8 +21,8 @@ def capture_debug_logs(func: Callable[[], Any]) -> Tuple[Any, str]:
     handler = logging.StreamHandler(log_capture)
     handler.setLevel(logging.DEBUG)
 
-    # Get the htutil logger and add our handler
-    logger = logging.getLogger("htutil.ht")
+    # Get the htty logger and add our handler
+    logger = logging.getLogger("htty.ht")
     original_level = logger.level
     logger.setLevel(logging.DEBUG)
     logger.addHandler(handler)

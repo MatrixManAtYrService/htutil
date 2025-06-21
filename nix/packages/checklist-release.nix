@@ -6,6 +6,6 @@ let
   inherit (lib.checks) checks releaseChecks;
 in
 checks.runner ({
-  name = "htutil-checklist-release";
+  name = "htty-checklist-release";
   suiteName = "Release Checks";
 } // releaseChecks)

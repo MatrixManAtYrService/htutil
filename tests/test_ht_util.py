@@ -1,5 +1,5 @@
 """
-Simple test using the htutil module to make assertions about terminal output.
+Simple test using the htty module to make assertions about terminal output.
 """
 
 import os
@@ -10,7 +10,7 @@ from typing import Generator
 
 import pytest
 
-from htutil import Press, ht_process, run
+from htty import Press, ht_process, run
 
 COLORED_HELLO_WORLD_SCRIPT = """
 print("\\033[31mhello\\033[0m")
@@ -206,11 +206,11 @@ def test_exit_after_subprocess_finished(hello_world_script: str) -> None:
 
 
 def test_vim_startup_screen() -> None:
-    """Test equivalent to: htutil --snapshot -- vim | grep "VIM - Vi IMproved" """
+    """Test equivalent to: htty --snapshot -- vim | grep "VIM - Vi IMproved" """
     try:
-        vim_path = os.environ["HTUTIL_TEST_VIM_TARGET"]
+        vim_path = os.environ["htty_TEST_VIM_TARGET"]
     except KeyError:
-        pytest.skip("HTUTIL_TEST_VIM_TARGET not set - please run in nix devshell")
+        pytest.skip("htty_TEST_VIM_TARGET not set - please run in nix devshell")
 
     proc = run(vim_path, rows=20, cols=50)
 
@@ -228,11 +228,11 @@ def test_vim_startup_screen() -> None:
 
 
 def test_vim_startup_screen_context_manager() -> None:
-    """Test equivalent to: htutil --snapshot -- vim | grep "VIM - Vi IMproved" (using context manager)"""
+    """Test equivalent to: htty --snapshot -- vim | grep "VIM - Vi IMproved" (using context manager)"""
     try:
-        vim_path = os.environ["HTUTIL_TEST_VIM_TARGET"]
+        vim_path = os.environ["htty_TEST_VIM_TARGET"]
     except KeyError:
-        pytest.skip("HTUTIL_TEST_VIM_TARGET not set - please run in nix devshell")
+        pytest.skip("htty_TEST_VIM_TARGET not set - please run in nix devshell")
 
     with ht_process(vim_path, rows=20, cols=50) as proc:
         snapshot = proc.snapshot()
@@ -243,12 +243,12 @@ def test_vim_startup_screen_context_manager() -> None:
 
 
 def test_vim_duplicate_line() -> None:
-    """Test equivalent to: htutil --rows 5 --cols 20 -k 'ihello,Escape' --snapshot
+    """Test equivalent to: htty --rows 5 --cols 20 -k 'ihello,Escape' --snapshot
     -k 'Vyp,Escape' --snapshot -k ':q!,Enter' -- vim"""
     try:
-        vim_path = os.environ["HTUTIL_TEST_VIM_TARGET"]
+        vim_path = os.environ["htty_TEST_VIM_TARGET"]
     except KeyError:
-        pytest.skip("HTUTIL_TEST_VIM_TARGET not set - please run in nix devshell")
+        pytest.skip("htty_TEST_VIM_TARGET not set - please run in nix devshell")
 
     proc = run(vim_path, rows=5, cols=20)
 

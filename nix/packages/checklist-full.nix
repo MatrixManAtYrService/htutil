@@ -6,6 +6,6 @@ let
   inherit (lib.checks) checks fullChecks;
 in
 checks.runner ({
-  name = "htutil-checklist-full";
+  name = "htty-checklist-full";
   suiteName = "Full Checks";
 } // fullChecks)

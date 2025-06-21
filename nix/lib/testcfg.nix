@@ -8,7 +8,7 @@ let
 
   # Test-specific vim package pinned for stability
   testVim = vim.overrideAttrs (_: {
-    pname = "htutil-test-vim";
+    pname = "htty-test-vim";
     version = "9.1.1336";
     src = fetchFromGitHub {
       owner = "vim";
@@ -20,26 +20,26 @@ let
 
   # Shared test configuration
   testConfig = {
-    # Common dependencies for htutil tests (ht binary is always required)
+    # Common dependencies for htty tests (ht binary is always required)
     baseDeps = [ uv testVim inputs.ht.packages.${system}.ht ];
 
-    # htutil-specific environment variables
+    # htty-specific environment variables
     baseEnv = {
-      HTUTIL_TEST_VIM_TARGET = "${testVim}/bin/vim";
+      htty_TEST_VIM_TARGET = "${testVim}/bin/vim";
       # Make ht binary available in PATH for tests
       PATH = "${inputs.ht.packages.${system}.ht}/bin:$PATH";
-      # Point htutil directly to the ht binary to avoid warnings
-      HTUTIL_HT_BIN = "${inputs.ht.packages.${system}.ht}/bin/ht";
+      # Point htty directly to the ht binary to avoid warnings
+      htty_HT_BIN = "${inputs.ht.packages.${system}.ht}/bin/ht";
     };
 
     # Helper to create Python test config with specific Python version
     pythonTestConfig = { pythonPkg ? python3 }: {
       extraDeps = [ uv pythonPkg testVim inputs.ht.packages.${system}.ht ];
       env = {
-        HTUTIL_TEST_VIM_TARGET = "${testVim}/bin/vim";
+        htty_TEST_VIM_TARGET = "${testVim}/bin/vim";
         PATH = "${inputs.ht.packages.${system}.ht}/bin:$PATH";
-        # Point htutil directly to the ht binary to avoid warnings
-        HTUTIL_HT_BIN = "${inputs.ht.packages.${system}.ht}/bin/ht";
+        # Point htty directly to the ht binary to avoid warnings
+        htty_HT_BIN = "${inputs.ht.packages.${system}.ht}/bin/ht";
       } // (if pythonPkg != python3 then {
         UV_PYTHON = "${pythonPkg}/bin/python";
       } else { });

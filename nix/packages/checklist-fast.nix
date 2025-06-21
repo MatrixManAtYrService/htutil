@@ -6,6 +6,6 @@ let
   inherit (lib.checks) checks fastChecks;
 in
 checks.runner ({
-  name = "htutil-checklist-fast";
+  name = "htty-checklist-fast";
   suiteName = "Fast Checks";
 } // fastChecks)

@@ -1,5 +1,5 @@
 [project]
-name = "htutil"
+name = "htty"
 version = "0.1.1"
 description = "A python wrapper around ht (a headless terminal utility)"
 readme = "README.md"
@@ -27,19 +27,19 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/MatrixManAtYrService/htutil"
-Repository = "https://github.com/MatrixManAtYrService/htutil"
-"Bug Tracker" = "https://github.com/MatrixManAtYrService/htutil/issues"
+Homepage = "https://github.com/MatrixManAtYrService/htty"
+Repository = "https://github.com/MatrixManAtYrService/htty"
+"Bug Tracker" = "https://github.com/MatrixManAtYrService/htty/issues"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/htutil"]
+packages = ["src/htty"]
 
 [project.scripts]
-htutil = "htutil.cli:cli"
+htty = "htty.cli:cli"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -70,7 +70,7 @@ select = [
 fixable = ["ALL"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["htutil"]
+known-first-party = ["htty"]
 force-single-line = false
 combine-as-imports = true
 

@@ -12,7 +12,7 @@ let
   inherit (lib.pypkg) pythonSet workspace;
   inherit (lib.testcfg) testConfig;
 
-  htutilWheel = flake.packages.${system}.htutil-wheel;
+  httyWheel = flake.packages.${system}.htty-wheel;
 
   src = ../../.;
 
@@ -39,11 +39,11 @@ let
       );
 
       # Create base Python environment
-      basePythonEnv = pythonSetFiltered.mkVirtualEnv "htutil-dev-env" filteredWorkspace.deps.all;
+      basePythonEnv = pythonSetFiltered.mkVirtualEnv "htty-dev-env" filteredWorkspace.deps.all;
 
       # Add test dependencies to the environment
       testEnv = pkgs.buildEnv {
-        name = "htutil-test-env";
+        name = "htty-test-env";
         paths = [ basePythonEnv ] ++ testConfig.baseDeps;
       };
     in
@@ -65,7 +65,7 @@ let
 
       # Create an environment that includes the wheel and sets up environment variables
       releaseEnv = pkgs.buildEnv {
-        name = "htutil-release-env";
+        name = "htty-release-env";
         paths = [
           basePythonEnv
           pythonVersions
@@ -88,7 +88,7 @@ let
       };
       pyrightCheck = checks.pyright {
         inherit src;
-        pythonEnv = pythonSet.mkVirtualEnv "htutil-pyright-env" workspace.deps.all;
+        pythonEnv = pythonSet.mkVirtualEnv "htty-pyright-env" workspace.deps.all;
       };
     };
     derivationChecks = { };
@@ -113,12 +113,12 @@ let
     scriptChecks = fastChecks.scriptChecks // {
       fawltydepsCheck = checks.fawltydeps {
         inherit src;
-        pythonEnv = pythonSet.mkVirtualEnv "htutil-fawltydeps-env" workspace.deps.all;
-        ignoreUndeclared = [ "htutil" "pdoc" "ruff" "pyright" "build" "hatchling" ];
+        pythonEnv = pythonSet.mkVirtualEnv "htty-fawltydeps-env" workspace.deps.all;
+        ignoreUndeclared = [ "htty" "pdoc" "ruff" "pyright" "build" "hatchling" ];
       };
       pdocCheck = checks.pdoc {
         inherit src;
-        pythonEnv = pythonSet.mkVirtualEnv "htutil-pdoc-env" workspace.deps.all;
+        pythonEnv = pythonSet.mkVirtualEnv "htty-pdoc-env" workspace.deps.all;
       };
     };
     derivationChecks = fullChecks.derivationChecks // {
@@ -131,8 +131,8 @@ let
         includePatterns = [ "src/**" "release_tests/**" "README.md" ];
         tests = [ "${src}/release_tests" ];
         # Set wheel path via the standard parameters
-        wheelPath = "${htutilWheel}/htutil-${version}-py3-none-any.whl";
-        wheelPathEnvVar = "HTUTIL_WHEEL_PATH";
+        wheelPath = "${httyWheel}/htty-${version}-py3-none-any.whl";
+        wheelPathEnvVar = "htty_WHEEL_PATH";
       };
     };
   };

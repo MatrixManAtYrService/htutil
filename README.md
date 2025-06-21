@@ -1,14 +1,16 @@
-# htutil
+# htty
 
-htutil programatically captures the appearance of a terminal application.
+![CI](https://github.com/MatrixManAtYrService/htty/workflows/CI/badge.svg)
 
-!["htutil taking a snapshot of a vim session"](improved.png)
+htty programatically captures the appearance of a terminal application.
+
+!["htty taking a snapshot of a vim session"](improved.png)
 
 It's a wrapper around [a lightly modified version of `ht`](https://github.com/MatrixManAtYrService/ht).
 Which handles ANSI control sequences and gives you a friendly string instead.
 
 
-You can run `htutil` at the command line, or you can use python to `import htuil`.
+You can run `htty` at the command line, or you can use python to `import htuil`.
 
 ## Headless Terminal (`ht`)
 
@@ -44,15 +46,15 @@ Vi IMproved[6;37Hversion 9.0.2136[7;33Hby Bram Moolenaar et al.[8;24HVim is o
 ```
 
 [ht](https://github.com/andyk/ht) reads raw output like you see above and renders it as if a terminal was attached.
-`htutil` provides a convenient way to use `ht`
+`htty` provides a convenient way to use `ht`
 
-## htutil CLI
+## htty CLI
 
 Working with `ht` is a bit like having a chat session with a terminal.
 You make requests by writing JSON to stdin, requests like "press escape" or "take snapshot".
 You get responses as more JSON from stdout.
 
-The `htutil` CLI is not interactive like this.
+The `htty` CLI is not interactive like this.
 It aims to do everything in a single command:
 
 1. start the process
@@ -62,26 +64,26 @@ It aims to do everything in a single command:
 
 You can take multiple snapshots in a single go:
 
-!["htutil taking several snapshots of a vim session at different times"](hellohello.png)
+!["htty taking several snapshots of a vim session at different times"](hellohello.png)
 
 In case you're vim-curious:
 
 - `ihello,Escape` enters insert mode types "hello" and goes back to normal mode.
 - `Vyp,Escape` enters line-wise visual mode with the the current line selected, yanks it, and puts it (so now there are two hello lines), and then goes back to normal mode.
 
-For more on `htutil` CLI usage, run `htutil --help` or see the [docs]() TODO: fix this link.
+For more on `htty` CLI usage, run `htty --help` or see the [docs]() TODO: fix this link.
 
-To understand which keys you can send, see [keys.py](src/htutil/keys.py).
+To understand which keys you can send, see [keys.py](src/htty/keys.py).
 Anything which is not identified as a key will be sent as individual characters.
 
-## htutil Python Library
+## htty Python Library
 
 As a python library, `htuitl` functions mostly like `ht`.
-Unlike the `htutil` cli, it doesn't require you to do everything in one step.
+Unlike the `htty` cli, it doesn't require you to do everything in one step.
 
 There's a context manager for handling cleanup...
 ```python
-from htutil import Press, ht_process, run
+from htty import Press, ht_process, run
 
 with ht_process(vim_path, rows=20, cols=50) as proc:
     snapshot = proc.snapshot()
@@ -105,7 +107,7 @@ proc.send_keys(Press.ENTER)    # vim quits, but ht stays open in case you want t
 proc.exit()                    # exit ht
 ```
 
-For more on using `htutil` as a python library, see the [docs]() TODO: fix this link.
+For more on using `htty` as a python library, see the [docs]() TODO: fix this link.
 
 # Contributing
 

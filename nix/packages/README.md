@@ -1,77 +1,77 @@
-# htutil Package Outputs
+# htty Package Outputs
 
-This directory contains the essential Nix packages for htutil, following Blueprint conventions.
+This directory contains the essential Nix packages for htty, following Blueprint conventions.
 
 ## Package Structure
 
 ### Main Packages
 
-#### `htutil.nix`
-The main htutil package:
-- Contains htutil with all Python dependencies
-- Uses system `ht` binary from PATH or `HTUTIL_HT_BIN` environment variable
+#### `htty.nix`
+The main htty package:
+- Contains htty with all Python dependencies
+- Uses system `ht` binary from PATH or `htty_HT_BIN` environment variable
 - Clean, minimal package for most use cases
-- Build with: `nix build .#htutil`
+- Build with: `nix build .#htty`
 
 Usage:
 ```bash
 # Build and use with system ht
-nix build .#htutil
-./result/bin/htutil -- echo "Hello"
+nix build .#htty
+./result/bin/htty -- echo "Hello"
 
 # Use with custom ht binary
-HTUTIL_HT_BIN=/path/to/custom/ht ./result/bin/htutil -- echo "Hello"
+htty_HT_BIN=/path/to/custom/ht ./result/bin/htty -- echo "Hello"
 ```
 
-#### `htutil-bundled.nix`
+#### `htty-bundled.nix`
 Self-contained package with bundled ht binary:
-- Includes both htutil and the ht binary
+- Includes both htty and the ht binary
 - No external dependencies required
 - Perfect for distribution or isolated environments
-- Build with: `nix build .#htutil-bundled`
+- Build with: `nix build .#htty-bundled`
 
 Usage:
 ```bash
 # Build self-contained package
-nix build .#htutil-bundled
+nix build .#htty-bundled
 
 # Works without ht in PATH
-./result/bin/htutil -- echo "Hello"
+./result/bin/htty -- echo "Hello"
 
-# Still respects HTUTIL_HT_BIN if set
-HTUTIL_HT_BIN=/custom/ht ./result/bin/htutil -- echo "Hello"
+# Still respects htty_HT_BIN if set
+htty_HT_BIN=/custom/ht ./result/bin/htty -- echo "Hello"
 ```
 
-#### `htutil-release-tests.nix`
+#### `htty-release-tests.nix`
 Comprehensive release testing package:
 - Tests across multiple Python versions
 - Validates package integrity
 - Used for release verification
-- Build with: `nix build .#htutil-release-tests`
+- Build with: `nix build .#htty-release-tests`
 
 ### Supporting Files
 
 #### `lib/` Directory
 Contains shared utilities and configuration:
 - `internal.nix`: Common Python environment setup
-- `htutil-packages.nix`: Package exports for Blueprint
+- `htty-packages.nix`: Package exports for Blueprint
 - `test-config.nix`: Shared test configuration
 - `test-vim.nix`: Pinned vim version for stable testing
 
-## HTUTIL_HT_BIN Environment Variable
+## htty_HT_BIN Environment Variable
 
-All packages support the `HTUTIL_HT_BIN` environment variable with this precedence:
+All packages support the `htty_HT_BIN` environment variable with this precedence:
 
-1. **`HTUTIL_HT_BIN`**: User-specified ht binary (if valid and executable)
-2. **Bundled ht**: Built-in ht binary (htutil-bundled only)
+1. **`htty_HT_BIN`**: User-specified ht binary (if valid and executable)
+2. **Bundled ht**: Built-in ht binary (htty-bundled only)
 3. **System PATH**: Default `ht` command
 
 ## Blueprint Integration
 
 Packages are automatically discovered by Blueprint:
-- `htutil` → Main package
-- `htutil-bundled` → Bundled variant
-- `htutil-release-tests` → Testing package
+- `htty` → Main package
+- `htty-bundled` → Bundled variant
+- `htty-release-tests` → Testing package
 
 View all packages: `nix flake show`
 
@@ -83,7 +83,7 @@ For development with immediate rebuilds on source changes:
 nix develop
 
 # Run with hot reloading
-nix run .#htutil -- your-command
+nix run .#htty -- your-command
 
 # Run tests
 nix build .#checks-full
@@ -91,9 +91,9 @@ nix build .#checks-full
 
 ## Distribution
 
-- **Individual users**: Use `htutil` (requires ht on system)
-- **Self-contained deployment**: Use `htutil-bundled`
-- **Custom ht binary**: Set `HTUTIL_HT_BIN` environment variable
+- **Individual users**: Use `htty` (requires ht on system)
+- **Self-contained deployment**: Use `htty-bundled`
+- **Custom ht binary**: Set `htty_HT_BIN` environment variable
 
 ## Notes
 

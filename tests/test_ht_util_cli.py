@@ -1,4 +1,4 @@
-"""Tests for the htutil command line interface via subprocess."""
+"""Tests for the htty command line interface via subprocess."""
 
 import logging
 import os
@@ -15,7 +15,7 @@ import pytest
 
 src_path = Path(__file__).parent.parent / "src"
 
-env = {**os.environ, "HTUTIL_HT_BIN": os.environ.get("HTUTIL_HT_BIN", "")}
+env = {**os.environ, "htty_HT_BIN": os.environ.get("htty_HT_BIN", "")}
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ def terminal_contents(*, actual_snapshots: str, expected_patterns: List[Pattern]
 def test_echo_hello() -> None:
     cmd = [
         *(sys.executable, "-m"),
-        "htutil.cli",
+        "htty.cli",
         *("-r", "2"),
         *("-c", "10"),
         "--",
@@ -96,7 +96,7 @@ def test_echo_hello() -> None:
 def test_keys_after_subproc_exit() -> None:
     cmd = [
         *(sys.executable, "-m"),
-        "htutil.cli",
+        "htty.cli",
         *("-r", "2"),
         *("-c", "10"),
         # echo hello will happen immediately and the subprocess will close
@@ -136,7 +136,7 @@ def greeter_script() -> Generator[str, None, None]:
 def test_send_keys(greeter_script: str) -> None:
     cmd = [
         *(sys.executable, "-m"),
-        "htutil.cli",
+        "htty.cli",
         *("-r", "2"),
         *("-c", "10"),
         *("-k", "world,Backspace,Enter"),
@@ -153,7 +153,7 @@ def test_send_keys(greeter_script: str) -> None:
 
 def test_vim() -> None:
     try:
-        vim_path = os.environ["HTUTIL_TEST_VIM_TARGET"]
+        vim_path = os.environ["htty_TEST_VIM_TARGET"]
     except KeyError:
         print(
             "Please run this test in the nix devshell defined in {project_root}/nix/devshell.nix"
@@ -164,7 +164,7 @@ def test_vim() -> None:
 
     cmd = [
         *(sys.executable, "-m"),
-        "htutil.cli",
+        "htty.cli",
         "--snapshot",
         *("-k", "ihello,Escape"),
         "--snapshot",
@@ -256,7 +256,7 @@ def test_empty_line_preservation():
     try:
         cmd = [
             *(sys.executable, "-m"),
-            "htutil.cli",
+            "htty.cli",
             "--snapshot",
             "--",
             sys.executable,

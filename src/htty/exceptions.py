@@ -1,33 +1,33 @@
 """
-Custom exceptions for htutil.
+Custom exceptions for htty.
 """
 
 
-class HTUtilError(Exception):
-    """Base exception for htutil errors."""
+class httyError(Exception):
+    """Base exception for htty errors."""
 
     pass
 
 
-class HTProcessError(HTUtilError):
+class HTProcessError(httyError):
     """Raised when there's an error with the HTProcess."""
 
     pass
 
 
-class HTTimeoutError(HTUtilError):
+class HTTimeoutError(httyError):
     """Raised when an operation times out."""
 
     pass
 
 
-class HTCommunicationError(HTUtilError):
+class HTCommunicationError(httyError):
     """Raised when communication with ht process fails."""
 
     pass
 
 
-class HTSnapshotError(HTUtilError):
+class HTSnapshotError(httyError):
     """Raised when taking a snapshot fails."""
 
     pass

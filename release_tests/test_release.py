@@ -1,5 +1,5 @@
 """
-Release tests for htutil using Python's virtualenv.
+Release tests for htty using Python's virtualenv.
 Run pytest with `-s` to see print output.
 """
 
@@ -19,10 +19,10 @@ PYTHON_VERSIONS = ["3.10", "3.11", "3.12"]
 class PythonEnvironment:
     """Reusable Python environment for a specific Python version."""
 
-    def __init__(self, python_version: str, workspace_root: Path, htutil_wheel: Path):
+    def __init__(self, python_version: str, workspace_root: Path, htty_wheel: Path):
         self.python_version = python_version
         self.workspace_root = workspace_root
-        self.htutil_wheel = htutil_wheel
+        self.htty_wheel = htty_wheel
         self.temp_dir = None
         self.venv_path = None
         self.setup_complete = False
@@ -34,7 +34,7 @@ class PythonEnvironment:
 
         print(f"🐍 Setting up environment for Python {self.python_version}")
 
-        self.temp_dir = Path(tempfile.mkdtemp(prefix=f"htutil-py{self.python_version}-"))
+        self.temp_dir = Path(tempfile.mkdtemp(prefix=f"htty-py{self.python_version}-"))
         self.venv_path = self.temp_dir / "test-venv"
 
         setup_script = self.temp_dir / "setup.sh"
@@ -44,7 +44,7 @@ class PythonEnvironment:
             f"python{self.python_version} -m venv {self.venv_path}",
             f"source {self.venv_path}/bin/activate",
             "pip install --upgrade pip",
-            f"pip install {self.htutil_wheel}",
+            f"pip install {self.htty_wheel}",
             "python --version",  # Verify we're using the correct Python version
             "echo 'Setup complete for Python {self.python_version}'",
         ]
@@ -152,26 +152,26 @@ def workspace_root():
 
 
 @pytest.fixture(scope="session")
-def htutil_wheel():
-    """Get htutil wheel path from environment variable."""
-    wheel_path = os.environ.get("HTUTIL_WHEEL_PATH")
+def htty_wheel():
+    """Get htty wheel path from environment variable."""
+    wheel_path = os.environ.get("htty_WHEEL_PATH")
     if not wheel_path:
         pytest.fail(
-            "HTUTIL_WHEEL_PATH environment variable is not set. Please set it to the path of the built htutil wheel."
+            "htty_WHEEL_PATH environment variable is not set. Please set it to the path of the built htty wheel."
         )
     wheel_file = Path(wheel_path)
     if not wheel_file.exists():
-        pytest.fail(f"HTUTIL_WHEEL_PATH does not exist: {wheel_file}")
+        pytest.fail(f"htty_WHEEL_PATH does not exist: {wheel_file}")
     return wheel_file
 
 
 @pytest.fixture(scope="function")
-def python_env(request, workspace_root, htutil_wheel):
+def python_env(request, workspace_root, htty_wheel):
     """Create a Python environment for the current test's Python version."""
     # Get the python_version from the current test's parameters
     python_version = request.node.callspec.params["python_version"]
 
-    env = PythonEnvironment(python_version, workspace_root, htutil_wheel)
+    env = PythonEnvironment(python_version, workspace_root, htty_wheel)
     env.setup()  # Set up for this specific test
 
     yield env
@@ -181,23 +181,23 @@ def python_env(request, workspace_root, htutil_wheel):
 
 @pytest.mark.parametrize("python_version", PYTHON_VERSIONS)
 class TestNixPython:
-    """Test htutil functionality across Python versions using Python's virtualenv."""
+    """Test htty functionality across Python versions using Python's virtualenv."""
 
     def test_cli_help(self, python_version, python_env):
-        """Test that htutil --help works."""
-        exit_code, output = python_env.run_command("htutil --help")
-        assert exit_code == 0, f"htutil --help failed: {output}"
-        assert "usage: htutil" in output.lower(), "Expected usage message"
+        """Test that htty --help works."""
+        exit_code, output = python_env.run_command("htty --help")
+        assert exit_code == 0, f"htty --help failed: {output}"
+        assert "usage: htty" in output.lower(), "Expected usage message"
         assert "ht terminal emulation" in output.lower(), "Expected description"
 
     def test_cli_echo_capture(self, python_version, python_env):
         """Test capturing echo command output."""
         exit_code, output = python_env.run_command(
-            f'htutil --rows 5 --cols 40 -- echo "Test from Python {python_version}"'
+            f'htty --rows 5 --cols 40 -- echo "Test from Python {python_version}"'
         )
 
         # Should work without binary architecture issues since we're using native nix
-        assert exit_code == 0, f"htutil echo failed: {output}"
+        assert exit_code == 0, f"htty echo failed: {output}"
         assert f"Test from Python {python_version}" in output, "Expected echo output"
 
     def test_cli_terminal_size(self, python_version, python_env):
@@ -220,9 +220,9 @@ class TestNixPython:
         #   5      (remaining digit)
         #          (trailing newline)
         exit_code, output = python_env.run_command(
-            f"htutil --rows 5 --cols 4 -- python{python_version} number_triangle.py"
+            f"htty --rows 5 --cols 4 -- python{python_version} number_triangle.py"
         )
-        assert exit_code == 0, f"htutil test failed: {output}"
+        assert exit_code == 0, f"htty test failed: {output}"
 
         # Split output into lines and filter out empty lines and separators
         lines = [line for line in output.split("\n") if line and line != "----"]
@@ -246,15 +246,15 @@ class TestNixPython:
         assert lines[3] == "5", f"Expected '5', got '{lines[3]}'"
 
     def test_api_import(self, python_version, python_env):
-        """Test that htutil can be imported."""
-        exit_code, output = python_env.run_command("python -c \"import htutil; print(f'Imported: {htutil.__name__}')\"")
+        """Test that htty can be imported."""
+        exit_code, output = python_env.run_command("python -c \"import htty; print(f'Imported: {htty.__name__}')\"")
         assert exit_code == 0, f"Import failed: {output}"
-        assert "Imported: htutil" in output
+        assert "Imported: htty" in output
 
     def test_api_create_ht_instance(self, python_version, python_env):
         """Test creating an ht_process instance."""
         command = """python -c "
-from htutil import ht_process
+from htty import ht_process
 with ht_process(['echo', 'test'], rows=10, cols=40) as proc:
     print(f'Created ht_process instance: rows={proc.rows}, cols={proc.cols}')
     snapshot = proc.snapshot()
@@ -270,7 +270,7 @@ with ht_process(['echo', 'test'], rows=10, cols=40) as proc:
     def test_api_run_command(self, python_version, python_env):
         """Test running a command via Python API."""
         command = f"""python -c "
-from htutil import run
+from htty import run
 import time
 proc = run(['echo', 'Hello from API Python {python_version}'], rows=5, cols=40)
 time.sleep(0.5)  # Give command time to complete
@@ -288,13 +288,13 @@ print('Command execution successful')
 class TestNixPythonConsistency:
     """Test that ensures functionality is consistent across Python versions."""
 
-    def test_version_consistency(self, workspace_root, htutil_wheel):
+    def test_version_consistency(self, workspace_root, htty_wheel):
         """Test that all Python versions produce similar results."""
-        test_cmd = "python -c \"import htutil; print(f'Python: {htutil.__name__} imported successfully')\""
+        test_cmd = "python -c \"import htty; print(f'Python: {htty.__name__} imported successfully')\""
 
         results = {}
         for version in PYTHON_VERSIONS:
-            env = PythonEnvironment(version, workspace_root, htutil_wheel)
+            env = PythonEnvironment(version, workspace_root, htty_wheel)
             env.setup()
             try:
                 exit_code, output = env.run_command(test_cmd)
@@ -305,6 +305,6 @@ class TestNixPythonConsistency:
         # All should succeed
         for version, (exit_code, output) in results.items():
             assert exit_code == 0, f"Python {version} failed: {output}"
-            assert "htutil imported successfully" in output
+            assert "htty imported successfully" in output
 
         print(f"✅ All Python versions ({', '.join(results.keys())}) work consistently")

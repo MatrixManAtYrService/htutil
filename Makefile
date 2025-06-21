@@ -15,7 +15,7 @@ help:
 # Variables
 HT_DIR := ./ht-build
 HT_BINARY := $(HT_DIR)/target/release/ht
-BUNDLED_DIR := src/htutil/_bundled
+BUNDLED_DIR := src/htty/_bundled
 BUNDLED_BINARY := $(BUNDLED_DIR)/ht
 
 # Build the ht binary from the fork

@@ -9,7 +9,7 @@ Feedback of any other sort (bugs, feature requests, etc) can go in an issue.
 
 ### With Nix
 
-htutil uses an experimental consistency framework: [checkdef](https://github.com/MatrixManAtYrService/checkdef) that requires nix.
+htty uses an experimental consistency framework: [checkdef](https://github.com/MatrixManAtYrService/checkdef) that requires nix.
 Commands to try:
 
 ```
@@ -39,12 +39,12 @@ nix develop --command uv run open /Applications/Cursor.app  # feeling reckless
 You can access the wheel for your system architecture (with bundled `ht`) like so:
 
 ```
-nix build .#htutil-wheel
+nix build .#htty-wheel
 ```
 
 ### Without Nix
 
-`htutil` is set up for use with `uv`.
+`htty` is set up for use with `uv`.
 
 ```
 # Create a virtual environment and install dependencies
@@ -68,7 +68,7 @@ Once you have a wheel, you can run the release tests:
 
 ```bash
 # Set the wheel path for release tests
-export HTUTIL_WHEEL_PATH=$(pwd)/dist/htutil-0.1.0-py3-none-any.whl
+export htty_WHEEL_PATH=$(pwd)/dist/htty-0.1.0-py3-none-any.whl
 
 # Run release tests (requires multiple Python versions: 3.10, 3.11, 3.12)
 uv run pytest release_tests/ -v -s

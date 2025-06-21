@@ -1,5 +1,5 @@
 """
-Key definitions for htutil
+Key definitions for htty
 Based on the key parsing logic in ht's stdio.rs file.
 """
 

@@ -32,4 +32,68 @@ jobs:
 
       - name: Run release checklist on tag
         if: startsWith(github.ref, 'refs/tags/')
-        run: nix run .#checklist-release 
+        run: nix run .#checklist-release
+
+  build-wheels:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v13
+
+      - name: Cache Nix store
+        uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: ${{ runner.os }}-${{ matrix.target }}-nix-${{ hashFiles('flake.lock', 'flake.nix', 'pyproject.toml', 'src/**', 'tests/**', 'nix/**') }}
+          restore-prefixes-first-match: ${{ runner.os }}-${{ matrix.target }}-nix-
+          paths: |
+            ~/.cache/nix
+            /nix/store
+
+      - name: Build wheel with Nix
+        run: nix build .#htty-wheel
+
+      - name: Copy wheel
+        run: cp result/*.whl ./
+
+      - name: Upload wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.os }}-${{ matrix.target }}
+          path: "*.whl"
+
+  publish-to-pypi:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build-wheels
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write  # For trusted publishing
+    
+    steps:
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-*
+          merge-multiple: true
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: ./ 

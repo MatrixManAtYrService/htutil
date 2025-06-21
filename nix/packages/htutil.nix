@@ -8,15 +8,15 @@ let
   projectToml = builtins.fromTOML (builtins.readFile ../../pyproject.toml);
   inherit (projectToml.project) version;
 
-  # Create the htutil virtual environment
-  htutilEnv = pythonSet.mkVirtualEnv "htutil-env" workspace.deps.default;
+  # Create the htty virtual environment
+  httyEnv = pythonSet.mkVirtualEnv "htty-env" workspace.deps.default;
 
 in
-# Main htutil package - clean and simple
+# Main htty package - clean and simple
 pkgs.stdenvNoCC.mkDerivation {
-  pname = "htutil";
+  pname = "htty";
   inherit version;
-  src = htutilEnv;
+  src = httyEnv;
 
   buildPhase = ''
     mkdir -p $out/bin
@@ -24,10 +24,10 @@ pkgs.stdenvNoCC.mkDerivation {
   '';
 
   meta = with pkgs.lib; {
-    description = "htutil is a set of python convenience functions for the ht terminal utility, this package does not contain the ht binary.  Indicate the ht binary path via HTUTIL_HT_BINARY or use the htutil-wheel output instead (which bundles it).";
-    homepage = "https://github.com/yourusername/htutil";
+    description = "htty is a set of python convenience functions for the ht terminal utility, this package does not contain the ht binary.  Indicate the ht binary path via htty_HT_BINARY or use the htty-wheel output instead (which bundles it).";
+    homepage = "https://github.com/yourusername/htty";
     license = licenses.mit;
-    mainProgram = "htutil";
+    mainProgram = "htty";
     platforms = platforms.unix;
   };
 }

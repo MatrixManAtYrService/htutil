@@ -1,11 +1,11 @@
-from htutil.ht import (
+from htty.ht import (
     HTBinary,
     SnapshotResult,
     ht_binary,
     ht_process,
     run,
 )
-from htutil.keys import (
+from htty.keys import (
     KeyInput,
     Press,
     key_to_string,
