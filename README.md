@@ -78,14 +78,12 @@ Anything which is not identified as a key will be sent as individual characters.
 
 ## htty Python Library
 
-As a python library, `htuitl` functions mostly like `ht`.
-Unlike the `htty` cli, it doesn't require you to do everything in one step.
+As a python library, `htty` functions mostly like `ht`.
 
-There's a context manager for handling cleanup...
 ```python
 from htty import Press, ht_process, run
 
-with ht_process(vim_path, rows=20, cols=50) as proc:
+with ht_process("vim", rows=20, cols=50) as proc:
     snapshot = proc.snapshot()
     # ht_process terminates vim and cleans up ht on context exit
 
@@ -95,7 +93,7 @@ improved_line = next(
 assert improved_line == "~               VIM - Vi IMproved                 "
 ```
 
-...or you can tell the subprocess to exit just like you would if you were typing into a terminal.
+Alternative usage:
 ```python
 proc = run("vim", rows=20, cols=50)
 snapshot = proc.snapshot()

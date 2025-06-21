@@ -25,21 +25,21 @@ let
 
     # htty-specific environment variables
     baseEnv = {
-      htty_TEST_VIM_TARGET = "${testVim}/bin/vim";
+      HTTY_TEST_VIM_TARGET = "${testVim}/bin/vim";
       # Make ht binary available in PATH for tests
       PATH = "${inputs.ht.packages.${system}.ht}/bin:$PATH";
       # Point htty directly to the ht binary to avoid warnings
-      htty_HT_BIN = "${inputs.ht.packages.${system}.ht}/bin/ht";
+      HTTY_HT_BIN = "${inputs.ht.packages.${system}.ht}/bin/ht";
     };
 
     # Helper to create Python test config with specific Python version
     pythonTestConfig = { pythonPkg ? python3 }: {
       extraDeps = [ uv pythonPkg testVim inputs.ht.packages.${system}.ht ];
       env = {
-        htty_TEST_VIM_TARGET = "${testVim}/bin/vim";
+        HTTY_TEST_VIM_TARGET = "${testVim}/bin/vim";
         PATH = "${inputs.ht.packages.${system}.ht}/bin:$PATH";
         # Point htty directly to the ht binary to avoid warnings
-        htty_HT_BIN = "${inputs.ht.packages.${system}.ht}/bin/ht";
+        HTTY_HT_BIN = "${inputs.ht.packages.${system}.ht}/bin/ht";
       } // (if pythonPkg != python3 then {
         UV_PYTHON = "${pythonPkg}/bin/python";
       } else { });

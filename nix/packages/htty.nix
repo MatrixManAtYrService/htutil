@@ -24,7 +24,7 @@ pkgs.stdenvNoCC.mkDerivation {
   '';
 
   meta = with pkgs.lib; {
-    description = "htty is a set of python convenience functions for the ht terminal utility, this package does not contain the ht binary.  Indicate the ht binary path via htty_HT_BINARY or use the htty-wheel output instead (which bundles it).";
+    description = "htty is a set of python convenience functions for the ht terminal utility, this package does not contain the ht binary.  Indicate the ht binary path via HTTY_HT_BIN or use the htty-wheel output instead (which bundles it).";
     homepage = "https://github.com/yourusername/htty";
     license = licenses.mit;
     mainProgram = "htty";

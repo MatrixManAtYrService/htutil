@@ -47,19 +47,19 @@ class HTBinary:
 
 
 def _try_user_specified_binary() -> Optional[str]:
-    """Try to use user-specified ht binary from htty_HT_BIN environment variable."""
-    user_ht = os.environ.get("htty_HT_BIN")
+    """Try to use user-specified ht binary from HTTY_HT_BIN environment variable."""
+    user_ht = os.environ.get("HTTY_HT_BIN")
     if not user_ht or not user_ht.strip():
         return None
 
     user_ht_path = Path(user_ht)
     if user_ht_path.is_file() and os.access(str(user_ht_path), os.X_OK):
         logger = logging.getLogger(__name__)
-        logger.info("Using user-specified ht binary from htty_HT_BIN")
+        logger.info("Using user-specified ht binary from HTTY_HT_BIN")
         return str(user_ht_path)
     else:
         raise RuntimeError(
-            f"htty_HT_BIN='{user_ht}' is not a valid executable file. "
+            f"HTTY_HT_BIN='{user_ht}' is not a valid executable file. "
             f"Please check that the path exists and is executable."
         )
 
@@ -110,7 +110,7 @@ def ht_binary() -> Iterator[HTBinary]:
     Context manager that provides access to the ht binary.
 
     Order of precedence:
-    1. htty_HT_BIN environment variable (if set and valid) - user override
+    1. HTTY_HT_BIN environment variable (if set and valid) - user override
     2. Bundled ht binary via importlib.resources (production/wheel)
     3. System 'ht' command from PATH (development fallback)
 
@@ -139,8 +139,8 @@ def ht_binary() -> Iterator[HTBinary]:
         "Could not find ht binary. Please ensure one of the following:\n"
         "1. Install htty from a wheel distribution (includes bundled ht)\n"
         "2. Install the 'ht' tool separately and ensure it's in PATH\n"
-        "3. Set htty_HT_BIN environment variable to point to ht binary\n"
-        "   Example: export htty_HT_BIN=/path/to/ht\n"
+        "3. Set HTTY_HT_BIN environment variable to point to ht binary\n"
+        "   Example: export HTTY_HT_BIN=/path/to/ht\n"
         "Get ht from: https://github.com/andyk/ht"
     )
 

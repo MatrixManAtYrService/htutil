@@ -45,17 +45,17 @@
         "globset": "globset"
       },
       "locked": {
-        "lastModified": 1750480247,
-        "narHash": "sha256-1KtsNkY+WByhBvbnF0CRtEu9q04cJ7+Vlei3OqsSerE=",
-        "owner": "MatrixManAtYrService",
-        "repo": "checkdef",
-        "rev": "b887929b0f67e159c9bc5f536ea9cfa120c56033",
-        "type": "github"
+        "lastModified": 1750490303,
+        "narHash": "sha256-ZwPf3oSmtACBmods73rLkVAdKFXN6UjCTlpSlNaQSGM=",
+        "ref": "refs/heads/main",
+        "rev": "d495de44ff301669370add32a6ab31cf983788c3",
+        "revCount": 42,
+        "type": "git",
+        "url": "file:///Users/matt/src/checkdef"
       },
       "original": {
-        "owner": "MatrixManAtYrService",
-        "repo": "checkdef",
-        "type": "github"
+        "type": "git",
+        "url": "file:///Users/matt/src/checkdef"
       }
     },
     "checkdef-demo": {

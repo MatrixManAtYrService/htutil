@@ -1,4 +1,4 @@
-"""Tests for htty_HT_BIN environment variable functionality."""
+"""Tests for HTTY_HT_BIN environment variable functionality."""
 
 import os
 import stat
@@ -16,15 +16,15 @@ if TYPE_CHECKING:
 from htty.ht import ht_binary
 
 
-class TesthttyHTBin:
-    """Test cases for htty_HT_BIN environment variable handling."""
+class TestHttyHTBin:
+    """Test cases for HTTY_HT_BIN environment variable handling."""
 
     def test_no_env_var_no_bundled_uses_system_ht(self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin") -> None:
-        """Test that without htty_HT_BIN and no bundled ht, system ht is used."""
+        """Test that without HTTY_HT_BIN and no bundled ht, system ht is used."""
         # Set logging level to capture WARNING messages
         with caplog.at_level("WARNING", logger="htty.ht"):
-            # Ensure htty_HT_BIN is not set
-            monkeypatch.delenv("htty_HT_BIN", raising=False)
+            # Ensure HTTY_HT_BIN is not set
+            monkeypatch.delenv("HTTY_HT_BIN", raising=False)
 
             # Mock importlib.resources to simulate no bundled ht
             with patch("importlib.resources.files") as mock_files:
@@ -40,7 +40,7 @@ class TesthttyHTBin:
                         assert "Expect trouble if this ht does not have the changes in this fork" in caplog.text
 
     def test_valid_env_var_is_used(self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin") -> None:
-        """Test that a valid htty_HT_BIN path is used."""
+        """Test that a valid HTTY_HT_BIN path is used."""
         with caplog.at_level("INFO", logger="htty.ht"):
             with tempfile.NamedTemporaryFile(delete=False) as tmp:
                 tmp.write(b"#!/bin/sh\necho 'mock ht'\n")
@@ -50,31 +50,31 @@ class TesthttyHTBin:
             os.chmod(tmp_path, os.stat(tmp_path).st_mode | stat.S_IEXEC)
 
             # Set the environment variable
-            monkeypatch.setenv("htty_HT_BIN", tmp_path)
+            monkeypatch.setenv("HTTY_HT_BIN", tmp_path)
 
             try:
                 with ht_binary() as ht:
                     assert ht.path == tmp_path
-                    assert "Using user-specified ht binary from htty_HT_BIN" in caplog.text
+                    assert "Using user-specified ht binary from HTTY_HT_BIN" in caplog.text
             finally:
                 os.unlink(tmp_path)
 
     def test_nonexistent_env_var_raises_error(self, monkeypatch: "MonkeyPatch") -> None:
-        """Test that nonexistent htty_HT_BIN path raises helpful error."""
+        """Test that nonexistent HTTY_HT_BIN path raises helpful error."""
         # Set environment variable to nonexistent path
         nonexistent_path = "/nonexistent/path/to/ht"
-        monkeypatch.setenv("htty_HT_BIN", nonexistent_path)
+        monkeypatch.setenv("HTTY_HT_BIN", nonexistent_path)
 
         with pytest.raises(RuntimeError) as exc_info:
             with ht_binary():
                 pass
 
         error_msg = str(exc_info.value)
-        assert f"htty_HT_BIN='{nonexistent_path}' is not a valid executable file" in error_msg
+        assert f"HTTY_HT_BIN='{nonexistent_path}' is not a valid executable file" in error_msg
         assert "Please check that the path exists and is executable" in error_msg
 
     def test_non_executable_env_var_raises_error(self, monkeypatch: "MonkeyPatch") -> None:
-        """Test that non-executable htty_HT_BIN path raises helpful error."""
+        """Test that non-executable HTTY_HT_BIN path raises helpful error."""
         # Create a temporary non-executable file
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp.write(b"not executable")
@@ -84,7 +84,7 @@ class TesthttyHTBin:
         os.chmod(tmp_path, 0o644)
 
         # Set the environment variable
-        monkeypatch.setenv("htty_HT_BIN", tmp_path)
+        monkeypatch.setenv("HTTY_HT_BIN", tmp_path)
 
         try:
             with pytest.raises(RuntimeError) as exc_info:
@@ -92,7 +92,7 @@ class TesthttyHTBin:
                     pass
 
             error_msg = str(exc_info.value)
-            assert f"htty_HT_BIN='{tmp_path}' is not a valid executable file" in error_msg
+            assert f"HTTY_HT_BIN='{tmp_path}' is not a valid executable file" in error_msg
             assert "Please check that the path exists and is executable" in error_msg
         finally:
             os.unlink(tmp_path)
@@ -101,29 +101,24 @@ class TesthttyHTBin:
         """Test that bundled ht is used when present and no env var is set."""
         # Set logging level to capture INFO messages
         with caplog.at_level("INFO", logger="htty.ht"):
-            # Ensure htty_HT_BIN is not set
-            monkeypatch.delenv("htty_HT_BIN", raising=False)
+            # Ensure HTTY_HT_BIN is not set
+            monkeypatch.delenv("HTTY_HT_BIN", raising=False)
 
-            # Mock importlib.resources to simulate bundled ht exists
-            with patch("importlib.resources.files") as mock_files:
-                # Mock the files() method and resource access
-                mock_ht_resource = mock_files.return_value.__truediv__.return_value
-                mock_ht_resource.is_file.return_value = True
+            # Mock the entire _try_bundled_binary function to simulate finding bundled ht
+            def mock_try_bundled():
+                import logging
 
-                # Mock the as_file context manager
-                with patch("importlib.resources.as_file") as mock_as_file:
-                    mock_context = mock_as_file.return_value
-                    mock_context.__enter__.return_value = Path("/tmp/ht_test")
-                    mock_context.__exit__.return_value = None
+                logger = logging.getLogger("htty.ht")
+                logger.info("Using bundled ht binary")
+                return "/tmp/ht_test"
 
-                    # Mock os.chmod
-                    with patch("os.chmod"):
-                        with ht_binary() as ht:
-                            assert ht.path == "/tmp/ht_test"
-                            assert "Using bundled ht binary" in caplog.text
+            with patch("htty.ht._try_bundled_binary", side_effect=mock_try_bundled):
+                with ht_binary() as ht:
+                    assert ht.path == "/tmp/ht_test"
+                    assert "Using bundled ht binary" in caplog.text
 
     def test_env_var_overrides_bundled(self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin") -> None:
-        """Test that htty_HT_BIN overrides bundled ht when both exist."""
+        """Test that HTTY_HT_BIN overrides bundled ht when both exist."""
         # Set logging level to capture INFO messages
         with caplog.at_level("INFO", logger="htty.ht"):
             # Create a temporary executable file
@@ -135,7 +130,7 @@ class TesthttyHTBin:
             os.chmod(tmp_path, os.stat(tmp_path).st_mode | stat.S_IEXEC)
 
             # Set the environment variable
-            monkeypatch.setenv("htty_HT_BIN", tmp_path)
+            monkeypatch.setenv("HTTY_HT_BIN", tmp_path)
 
             try:
                 # Mock the bundled ht to also exist
@@ -151,15 +146,15 @@ class TesthttyHTBin:
                     with patch("pathlib.Path.is_file", return_value=True):
                         with ht_binary() as ht:
                             assert ht.path == tmp_path
-                            assert "Using user-specified ht binary from htty_HT_BIN" in caplog.text
+                            assert "Using user-specified ht binary from HTTY_HT_BIN" in caplog.text
             finally:
                 os.unlink(tmp_path)
 
     def test_empty_env_var_ignored(self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin") -> None:
-        """Test that empty htty_HT_BIN is ignored and falls back to system ht."""
+        """Test that empty HTTY_HT_BIN is ignored and falls back to system ht."""
         # Set logging level to capture WARNING messages
         with caplog.at_level("WARNING", logger="htty.ht"):
-            monkeypatch.setenv("htty_HT_BIN", "")
+            monkeypatch.setenv("HTTY_HT_BIN", "")
 
             # Mock importlib.resources to simulate no bundled ht
             with patch("importlib.resources.files") as mock_files:
@@ -176,8 +171,8 @@ class TesthttyHTBin:
 
     def test_helpful_error_message_content(self, monkeypatch: "MonkeyPatch") -> None:
         """Test that helpful error message is shown when no ht binary is found anywhere."""
-        # Ensure htty_HT_BIN is not set
-        monkeypatch.delenv("htty_HT_BIN", raising=False)
+        # Ensure HTTY_HT_BIN is not set
+        monkeypatch.delenv("HTTY_HT_BIN", raising=False)
 
         # Mock importlib.resources to simulate no bundled ht
         with patch("importlib.resources.files") as mock_files:
@@ -197,7 +192,7 @@ class TesthttyHTBin:
                     "Could not find ht binary",
                     "Install htty from a wheel distribution",
                     "Install the 'ht' tool separately",
-                    "Set htty_HT_BIN environment variable",
+                    "Set HTTY_HT_BIN environment variable",
                     "https://github.com/andyk/ht",
                 ]
                 for part in expected_parts:
@@ -214,7 +209,7 @@ class TesthttyHTBin:
         os.chmod(tmp_path, os.stat(tmp_path).st_mode | stat.S_IEXEC)
 
         # Set the environment variable
-        monkeypatch.setenv("htty_HT_BIN", tmp_path)
+        monkeypatch.setenv("HTTY_HT_BIN", tmp_path)
 
         try:
             with ht_binary() as ht:

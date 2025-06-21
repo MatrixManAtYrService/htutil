@@ -114,11 +114,13 @@ let
       fawltydepsCheck = checks.fawltydeps {
         inherit src;
         pythonEnv = pythonSet.mkVirtualEnv "htty-fawltydeps-env" workspace.deps.all;
-        ignoreUndeclared = [ "htty" "pdoc" "ruff" "pyright" "build" "hatchling" ];
+        ignoreUndeclared = [ "htty" ];
+        ignoreUnused = [ "pdoc" "ruff" "pyright" "build" "hatchling" ];
       };
       pdocCheck = checks.pdoc {
         inherit src;
         pythonEnv = pythonSet.mkVirtualEnv "htty-pdoc-env" workspace.deps.all;
+        modulePath = "src/htty";
       };
     };
     derivationChecks = fullChecks.derivationChecks // {

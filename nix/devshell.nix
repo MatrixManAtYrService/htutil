@@ -22,7 +22,7 @@ pkgs.mkShell {
   ];
 
   shellHook = ''
-    export htty_TEST_VIM_TARGET="${testVim}/bin/vim"
-    export htty_HT_BIN="${inputs.ht.packages.${system}.ht}/bin/ht"
+    export HTTY_TEST_VIM_TARGET="${testVim}/bin/vim"
+    export HTTY_HT_BIN="${inputs.ht.packages.${system}.ht}/bin/ht"
   '';
 }

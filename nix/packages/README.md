@@ -9,7 +9,7 @@ This directory contains the essential Nix packages for htty, following Blueprint
 #### `htty.nix`
 The main htty package:
 - Contains htty with all Python dependencies
-- Uses system `ht` binary from PATH or `htty_HT_BIN` environment variable
+- Uses system `ht` binary from PATH or `HTTY_HT_BIN` environment variable
 - Clean, minimal package for most use cases
 - Build with: `nix build .#htty`
 
@@ -20,7 +20,7 @@ nix build .#htty
 ./result/bin/htty -- echo "Hello"
 
 # Use with custom ht binary
-htty_HT_BIN=/path/to/custom/ht ./result/bin/htty -- echo "Hello"
+HTTY_HT_BIN=/path/to/custom/ht ./result/bin/htty -- echo "Hello"
 ```
 
 #### `htty-bundled.nix`
@@ -38,8 +38,8 @@ nix build .#htty-bundled
 # Works without ht in PATH
 ./result/bin/htty -- echo "Hello"
 
-# Still respects htty_HT_BIN if set
-htty_HT_BIN=/custom/ht ./result/bin/htty -- echo "Hello"
+# Still respects HTTY_HT_BIN if set
+HTTY_HT_BIN=/custom/ht ./result/bin/htty -- echo "Hello"
 ```
 
 #### `htty-release-tests.nix`
@@ -58,11 +58,11 @@ Contains shared utilities and configuration:
 - `test-config.nix`: Shared test configuration
 - `test-vim.nix`: Pinned vim version for stable testing
 
-## htty_HT_BIN Environment Variable
+## HTTY_HT_BIN Environment Variable
 
-All packages support the `htty_HT_BIN` environment variable with this precedence:
+All packages support the `HTTY_HT_BIN` environment variable with this precedence:
 
-1. **`htty_HT_BIN`**: User-specified ht binary (if valid and executable)
+1. **`HTTY_HT_BIN`**: User-specified ht binary (if valid and executable)
 2. **Bundled ht**: Built-in ht binary (htty-bundled only)
 3. **System PATH**: Default `ht` command
 
@@ -93,7 +93,7 @@ nix build .#checks-full
 
 - **Individual users**: Use `htty` (requires ht on system)
 - **Self-contained deployment**: Use `htty-bundled`
-- **Custom ht binary**: Set `htty_HT_BIN` environment variable
+- **Custom ht binary**: Set `HTTY_HT_BIN` environment variable
 
 ## Notes
 

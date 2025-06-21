@@ -15,7 +15,7 @@ import pytest
 
 src_path = Path(__file__).parent.parent / "src"
 
-env = {**os.environ, "htty_HT_BIN": os.environ.get("htty_HT_BIN", "")}
+env = {**os.environ, "HTTY_HT_BIN": os.environ.get("HTTY_HT_BIN", "")}
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +153,7 @@ def test_send_keys(greeter_script: str) -> None:
 
 def test_vim() -> None:
     try:
-        vim_path = os.environ["htty_TEST_VIM_TARGET"]
+        vim_path = os.environ["HTTY_TEST_VIM_TARGET"]
     except KeyError:
         print(
             "Please run this test in the nix devshell defined in {project_root}/nix/devshell.nix"
