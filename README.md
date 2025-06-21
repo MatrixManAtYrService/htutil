@@ -51,11 +51,8 @@ If you captured what vim is writing, you'd see something like this:
 Vi IMproved[6;37Hversion 9.0.2136[7;33Hby Bram Moolenaar et al.[8;24HVim is open source and freely distributable[10;32HHelp poor children in Uganda!
 ```
 
-`[6;37H` here means "row 6 column 37".
-These numbers would be different if my terminal had been a different width when I captured that string.
 This makes working with `vim`'s actual output quite challenging.
-
-[ht](https://github.com/andyk/ht) can give you snapshots of the headless terminal so you don't have to deal with the ANSI codes.
+[ht](https://github.com/andyk/ht) can provide snapshots of the headless terminal so you can work with something friendlier.
 
 ## htutil CLI
 
