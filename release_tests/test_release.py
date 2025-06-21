@@ -17,83 +17,115 @@ PYTHON_VERSIONS = ["3.10", "3.11", "3.12"]
 
 
 class PythonEnvironment:
-    """Reusable Python environment for a specific Python version."""
+    """Environment for testing htty wheel installations across Python versions."""
 
     def __init__(self, python_version: str, workspace_root: Path, htty_wheel: Path):
         self.python_version = python_version
         self.workspace_root = workspace_root
         self.htty_wheel = htty_wheel
-        self.temp_dir = None
-        self.venv_path = None
         self.setup_complete = False
+        self.venv_dir = None
+        self.python_executable = None
 
     def setup(self):
-        """Set up the environment once - reusable across multiple commands."""
+        """Set up a virtualenv and install the htty wheel - this tests the real wheel experience."""
         if self.setup_complete:
             return
 
-        print(f"🐍 Setting up environment for Python {self.python_version}")
+        print(f"🐍 Setting up wheel test environment for Python {self.python_version}")
 
-        self.temp_dir = Path(tempfile.mkdtemp(prefix=f"htty-py{self.python_version}-"))
-        self.venv_path = self.temp_dir / "test-venv"
+        # Create a temporary directory for the virtualenv
+        self.venv_dir = Path(tempfile.mkdtemp(prefix=f"htty-wheel-test-py{self.python_version}-"))
 
-        setup_script = self.temp_dir / "setup.sh"
-        setup_commands = [
-            "#!/bin/bash",
-            "set -euo pipefail",
-            f"python{self.python_version} -m venv {self.venv_path}",
-            f"source {self.venv_path}/bin/activate",
-            "pip install --upgrade pip",
-            f"pip install {self.htty_wheel}",
-            "python --version",  # Verify we're using the correct Python version
-            "echo 'Setup complete for Python {self.python_version}'",
-        ]
-
-        setup_script.write_text("\n".join(setup_commands))
-        setup_script.chmod(0o755)
-
-        print(f"📦 Setting up virtualenv for Python {self.python_version}...")
-        result = subprocess.run(
-            str(setup_script),
-            cwd=self.temp_dir,
-            capture_output=True,
-            text=True,
-            timeout=300,
-        )
-
-        if result.returncode != 0:
-            raise RuntimeError(f"Failed to set up environment: {result.stderr}")
-
-        print(f"✅ Environment ready for Python {self.python_version}")
-        self.setup_complete = True
-
-    def run_command(self, command: str) -> Tuple[int, str]:
-        """Run a command in the prepared virtualenv environment."""
-        if not self.setup_complete:
-            self.setup()
-        assert self.temp_dir is not None
-        assert self.venv_path is not None
-        print(f"💻 Executing: {command}")
-
-        # Crea te script that activates venv and runs command
-        script_path = self.temp_dir / f"cmd_{hash(command) % 10000}.sh"
-        script_content = dedent(
-            f"""#!/bin/bash
-                set -euo pipefail
-                source {self.venv_path}/bin/activate
-                {command}
-                """
-        )
-        script_path.write_text(script_content)
-        script_path.chmod(0o755)
+        # Create virtualenv using the specified Python version
+        python_bin = f"python{self.python_version}"
+        print(f"📦 Creating virtualenv with {python_bin}")
 
         try:
+            # Verify Python version is available
             result = subprocess.run(
-                str(script_path),
-                cwd=self.temp_dir,
+                [python_bin, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"Python {self.python_version} not available: {result.stderr}")
+            print(f"✅ Using Python: {result.stdout.strip()}")
+
+            # Create virtualenv
+            venv_result = subprocess.run(
+                [python_bin, "-m", "venv", str(self.venv_dir)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if venv_result.returncode != 0:
+                raise RuntimeError(f"Failed to create virtualenv: {venv_result.stderr}")
+
+            # Set up Python executable path for the virtualenv
+            if os.name == "nt":  # Windows
+                self.python_executable = self.venv_dir / "Scripts" / "python.exe"
+            else:  # Unix-like
+                self.python_executable = self.venv_dir / "bin" / "python"
+
+            if not self.python_executable.exists():
+                raise RuntimeError(f"Virtualenv Python executable not found: {self.python_executable}")
+
+            print(f"✅ Virtualenv created at: {self.venv_dir}")
+
+            # Install the htty wheel - this is what we're actually testing!
+            print(f"🎯 Installing htty wheel: {self.htty_wheel}")
+            install_result = subprocess.run(
+                [str(self.python_executable), "-m", "pip", "install", str(self.htty_wheel)],
                 capture_output=True,
                 text=True,
                 timeout=300,
+            )
+            if install_result.returncode != 0:
+                raise RuntimeError(f"Failed to install htty wheel: {install_result.stderr}")
+
+            print("✅ htty wheel installed successfully")
+            if install_result.stdout:
+                print(f"📦 Installation output: {install_result.stdout}")
+
+        except FileNotFoundError:
+            raise RuntimeError(f"Python {self.python_version} not found in PATH")
+
+        print(f"✅ Wheel test environment ready for Python {self.python_version}")
+        self.setup_complete = True
+
+    def run_command(self, command: str) -> Tuple[int, str]:
+        """Run a command in the virtualenv where htty wheel is installed."""
+        if not self.setup_complete:
+            self.setup()
+
+        print(f"💻 Executing in virtualenv: {command}")
+
+        try:
+            # Run command in the virtualenv
+            # We need to activate the virtualenv environment variables
+            env = os.environ.copy()
+
+            # Set virtualenv paths
+            if os.name == "nt":  # Windows
+                env["PATH"] = f"{self.venv_dir / 'Scripts'}{os.pathsep}{env.get('PATH', '')}"
+            else:  # Unix-like
+                env["PATH"] = f"{self.venv_dir / 'bin'}{os.pathsep}{env.get('PATH', '')}"
+
+            env["VIRTUAL_ENV"] = str(self.venv_dir)
+
+            # Remove any PYTHONHOME that might interfere
+            env.pop("PYTHONHOME", None)
+
+            result = subprocess.run(
+                command,
+                shell=True,
+                cwd=self.venv_dir,
+                capture_output=True,
+                text=True,
+                timeout=300,
+                env=env,
             )
 
             if result.stdout:
@@ -106,6 +138,7 @@ class PythonEnvironment:
             print(f"🏁 Command completed with exit code: {result.returncode}")
 
             return result.returncode, result.stdout + (result.stderr if result.stderr else "")
+
         except subprocess.TimeoutExpired:
             print("⏰ Command timed out after 5 minutes")
             return 1, "Command timed out after 5 minutes"
@@ -114,32 +147,35 @@ class PythonEnvironment:
             return 1, f"Error running command: {e}"
 
     def run_command_with_script(self, python_code: str) -> Tuple[int, str]:
-        """Run a Python script in the prepared virtualenv environment."""
+        """Run a Python script in the virtualenv."""
         if not self.setup_complete:
             self.setup()
-        assert self.temp_dir is not None
-        # Create a temporary Python file
-        python_file = self.temp_dir / f"script_{hash(python_code) % 10000}.py"
+        assert self.venv_dir is not None
+
+        # Create a temporary Python file in the virtualenv directory
+        python_file = self.venv_dir / f"script_{hash(python_code) % 10000}.py"
         python_file.write_text(python_code)
-        print("🐍 Executing Python script:")
+        print("🐍 Executing Python script in virtualenv:")
         print(f"    {python_code.strip()}")
+
+        # Run the Python script using the virtualenv's Python
         return self.run_command(f"python {python_file}")
 
     def cleanup(self):
-        """Clean up the temporary directory."""
-        if self.temp_dir and self.temp_dir.exists():
-            shutil.rmtree(self.temp_dir, ignore_errors=True)
-            print(f"🧹 Cleaned up environment for Python {self.python_version}")
+        """Clean up the virtualenv directory."""
+        if self.venv_dir and self.venv_dir.exists():
+            shutil.rmtree(self.venv_dir, ignore_errors=True)
+            print(f"🧹 Cleaned up virtualenv for Python {self.python_version}")
 
     def copy_file(self, source: Path, destination: str):
-        """Copy a file to the virtualenv environment."""
+        """Copy a file to the virtualenv working directory."""
         if not self.setup_complete:
             self.setup()
-        assert self.temp_dir is not None
+        assert self.venv_dir is not None
         print(f"💾 Copying file: {source} to {destination}")
 
-        # Copy the file to the temp directory
-        destination_path = self.temp_dir / destination
+        # Copy the file to the virtualenv directory
+        destination_path = self.venv_dir / destination
         shutil.copy(source, destination_path)
 
         print(f"✅ File copied successfully: {destination_path}")
