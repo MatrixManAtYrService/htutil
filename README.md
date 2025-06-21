@@ -1,7 +1,15 @@
-# ht
+# htutil
+
+htutil is a tool for capturing the output of terminal applications
+Instead of having ANSI control sequences, `htutil`'s output looks like what the terminal would look like.
+
+It exposes `htutil` at the command line, and you can use python to `import htuil`.
+
+It's mostly just helper functions around [my fork of `ht`](https://github.com/MatrixManAtYrService/ht).
+
+## Headless Terminal (`ht`)
 
 [ht](https://github.com/andyk/ht) lets you run subprocesses which are connected to a headless terminal.
-
 To understand why this is useful, consider the vim startup screen:
 ```
 ~                       VIM - Vi IMproved
@@ -14,23 +22,24 @@ To understand why this is useful, consider the vim startup screen:
 
 It looks like a string in your terminal, so it might be tempting to treat it like a string in code:
 
-```
+```python
 import subprocess
 vimproc = subprocess.Popen(["vim"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 stdout, stderr = vimproc.communicate()
-assert stdout.lines[0][1:].strip() == "Sponsor Vim development!"
+assert stdout.lines[0][1:].strip() == "VIM - Vi IMproved"
 ```
 
 Or maybe like this:
 
-```
+```bash
 ❯ vim | grep IMproved
 Vim: Warning: Output is not to a terminal
 ```
 
-Vim is warning us of our first mistake, which was assuming that vim is writing to stdout (it's writing to /dev/tty).
-But even tricker: it's not writing line-by-line but rather using ANSI escape codes to control the output.
-If you captured what vim is writing to /dev/tty you'd see something like this:
+Vim is warning us of our first mistake, which was assuming that vim is writing to stdout (it's writing to `/dev/tty`).
+
+But the trickier problem is that it's not writing line-by-line but rather using ANSI escape codes to control the output.
+If you captured what vim is writing you'd see something like this:
 
 ```
 Vi IMproved[6;37Hversion 9.0.2136[7;33Hby Bram Moolenaar et al.[8;24HVim is open source and freely distributable[10;32HHelp poor children in Uganda!
@@ -38,18 +47,15 @@ Vi IMproved[6;37Hversion 9.0.2136[7;33Hby Bram Moolenaar et al.[8;24HVim is o
 
 `[6;37H` here means "row 6 column 37".
 These numbers would be different if my terminal had been a different width when I captured that string.
-This makes working with `vim`'s actual output quite different than working with the strings that you actually see on your screen.
+This makes working with `vim`'s actual output quite challenging.
 
-[ht](https://github.com/andyk/ht) simplifies this by connecting the subprocess (`vim` in this case) to a fake terminal.
+[ht](https://github.com/andyk/ht) simplifies this by connecting a subprocess (`vim` in this case) to a fake terminal.
 It lets you see how the output is rendered, rather than working with the output prior to rendering.
-This simplifies testing significantly.
-
-# htutil
-
-`htutil` provides an alternative to the `ht` CLI and a python library, both which wrap [a fork of ht](https://github.com/MatrixManAtYrService/ht).
+It simplifies testing significantly.
 
 
-### CLI
+
+## htutil CLI
 
 Working with `ht` at the command line is a bit like having a chat session with the headless terminal.
 Ask it to send keystrokes or to take snapshots by writing JSON objects to stdin and the answers come back to you on stdout in the form of other JSON objects.
@@ -100,10 +106,10 @@ For more on `htutil` CLI usage, run `htutil --help` or see the [docs]() TODO: fi
 To understand which keys you can send, see [keys.py](src/htutil/keys.py).
 Anything which is not identified as a key will be sent as individual characters.
 
-### Python Library
+## htutil Python Library
 
-You can also import `htutil` as a python library.
-It functions mostly like `ht`, except you control it by calling python functions.
+As a python library, `htuitl` functions mostly like `ht`.
+Unlike the `htutil` cli, it doesn't require you to do everything in one step.
 
 There's a context manager for handling cleanup...
 ```python
