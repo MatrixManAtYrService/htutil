@@ -1,12 +1,18 @@
 # htutil
 
-htutil is a tool for making string-snapshots of terminal applications.
-Instead of having ANSI control sequences, `htutil`'s output looks like what a connected terminal would look like.
-It's useful for testing or improving subprocess transparency.
+htutil is a tool for capturing terminal applications appear.
+It handles the ANSI control sequences and gives you a human-friendly string instead.
 
-It exposes `htutil` at the command line, and you can use python to `import htuil`.
+```
+❯ htutil --snapshot -- vim | grep IMproved
+~               VIM - Vi IMproved
+```
 
-It's mostly just helper functions around [my fork of `ht`](https://github.com/MatrixManAtYrService/ht).
+It's useful for testing or for making your glue-code more transparent about what its subprocesses are up to.
+It exposes `htutil` at the command line, or you can use python to `import htuil`.
+These are more or less equivalent.
+
+It's mostly a collection of helper functions around [my fork of `ht`](https://github.com/MatrixManAtYrService/ht), which does the heavy lifting.
 
 ## Headless Terminal (`ht`)
 
@@ -65,12 +71,6 @@ It aims to do everything in a single command:
 2. send keys, take snapshots
 3. stop the process
 4. write the snapshots to stdout
-
-
-```
-❯ htutil --snapshot -- vim | grep IMproved
-~               VIM - Vi IMproved
-```
 
 You can take multiple snapshots in a single go:
 
