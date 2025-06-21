@@ -50,15 +50,13 @@ Vi IMproved[6;37Hversion 9.0.2136[7;33Hby Bram Moolenaar et al.[8;24HVim is o
 These numbers would be different if my terminal had been a different width when I captured that string.
 This makes working with `vim`'s actual output quite challenging.
 
-[ht](https://github.com/andyk/ht) simplifies this by connecting a subprocess to a headless terminal.
-You can ask it for snapshots which show how the headless terminal is rendering output at that time.
-
+[ht](https://github.com/andyk/ht) can give you snapshots of the headless terminal so you don't have to deal with the ANSI codes.
 
 ## htutil CLI
 
-Working with `ht` at the command line is a bit like having a chat session with a terminal.
-You type in JSON to make requests like "press key" or "take snapshot".
-You get responses as more JSON.
+Working with `ht` is a bit like having a chat session with a terminal.
+You make requests by writing JSON to stdin, requests like "press key" or "take snapshot".
+You get responses as more JSON from stdout.
 
 The `htutil` CLI is not interactive like this.
 It aims to do everything in a single command:
