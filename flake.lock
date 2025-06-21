@@ -45,11 +45,11 @@
         "globset": "globset"
       },
       "locked": {
-        "lastModified": 1750490303,
-        "narHash": "sha256-ZwPf3oSmtACBmods73rLkVAdKFXN6UjCTlpSlNaQSGM=",
+        "lastModified": 1750529613,
+        "narHash": "sha256-MWAhq7Uefy7mxeR4+c1FKz+o/vZduiuBC0cnKiqibd4=",
         "owner": "MatrixManAtYrService",
         "repo": "checkdef",
-        "rev": "d495de44ff301669370add32a6ab31cf983788c3",
+        "rev": "c6dfd5b79663c4aef554911b109a8aa85d38becb",
         "type": "github"
       },
       "original": {
@@ -386,11 +386,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1746540146,
-        "narHash": "sha256-QxdHGNpbicIrw5t6U3x+ZxeY/7IEJ6lYbvsjXmcxFIM=",
+        "lastModified": 1750499893,
+        "narHash": "sha256-ThKBd8XSvITAh2JqU7enOp8AfKeQgf9u7zYC41cnBE4=",
         "owner": "pyproject-nix",
         "repo": "pyproject.nix",
-        "rev": "e09c10c24ebb955125fda449939bfba664c467fd",
+        "rev": "e824458bd917b44bf4c38795dea2650336b2f55d",
         "type": "github"
       },
       "original": {
