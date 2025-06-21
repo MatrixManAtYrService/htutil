@@ -74,10 +74,32 @@ class PythonEnvironment:
 
             print(f"✅ Virtualenv created at: {self.venv_dir}")
 
+            # Look for pre-downloaded wheels in the Nix environment
+            wheels_dir = None
+
+            # Check for wheel cache directory from environment variable
+            wheel_cache_dir = os.environ.get("WHEEL_CACHE_DIR")
+            if wheel_cache_dir:
+                cache_path = Path(wheel_cache_dir)
+                wheels_dir = cache_path / "wheels"
+                if not wheels_dir.exists():
+                    print(f"⚠️  WHEEL_CACHE_DIR set to {wheel_cache_dir} but wheels directory not found")
+                    wheels_dir = None
+
             # Install the htty wheel - this is what we're actually testing!
             print(f"🎯 Installing htty wheel: {self.htty_wheel}")
+
+            install_cmd = [str(self.python_executable), "-m", "pip", "install", str(self.htty_wheel)]
+
+            # If we found pre-downloaded wheels, use them
+            if wheels_dir and wheels_dir.exists():
+                print(f"📦 Using pre-downloaded wheels from: {wheels_dir}")
+                install_cmd.extend(["--find-links", str(wheels_dir), "--no-index"])
+            else:
+                print("⚠️  No pre-downloaded wheels found, will try to download dependencies")
+
             install_result = subprocess.run(
-                [str(self.python_executable), "-m", "pip", "install", str(self.htty_wheel)],
+                install_cmd,
                 capture_output=True,
                 text=True,
                 timeout=300,

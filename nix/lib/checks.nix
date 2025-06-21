@@ -20,6 +20,96 @@ let
   pyproject = builtins.fromTOML (builtins.readFile (src + "/pyproject.toml"));
   inherit (pyproject.project) version;
 
+  # Create a local wheels directory with the pre-fetched dependency
+  wheelCache = pkgs.runCommand "wheel-cache"
+    {
+      nativeBuildInputs = [ pkgs.python3 pkgs.python3.pkgs.pip pkgs.python3.pkgs.wheel pkgs.python3.pkgs.ansi2html ];
+    } ''
+        mkdir -p $out/wheels
+
+        # Create a wheel from the nixpkgs ansi2html package
+        # We'll create a simple wheel structure manually
+        WHEEL_DIR="$TMPDIR/ansi2html_wheel"
+        mkdir -p "$WHEEL_DIR/ansi2html"
+
+        # Copy the ansi2html module from nixpkgs
+        cp -r ${pkgs.python3.pkgs.ansi2html}/${pkgs.python3.sitePackages}/ansi2html/* "$WHEEL_DIR/ansi2html/"
+
+        # Create a simple wheel using the existing package
+        cd "$WHEEL_DIR"
+        cat > create_wheel.py << 'EOF'
+    import zipfile
+    import os
+    import sys
+    import hashlib
+
+    wheel_name = 'ansi2html-1.9.2-py3-none-any.whl'
+    output_dir = sys.argv[1]
+
+    def calculate_hash(file_path):
+        """Calculate SHA256 hash of a file."""
+        sha256_hash = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(chunk)
+        return sha256_hash.hexdigest()
+
+    record_entries = []
+
+    with zipfile.ZipFile(os.path.join(output_dir, wheel_name), 'w') as wheel:
+        # Add all ansi2html files
+        for root, dirs, files in os.walk('ansi2html'):
+            for file in files:
+                file_path = os.path.join(root, file)
+                arcname = file_path
+                wheel.write(file_path, arcname)
+
+                # Calculate hash and size for RECORD
+                file_hash = calculate_hash(file_path)
+                file_size = os.path.getsize(file_path)
+                record_entries.append(f"{arcname},sha256={file_hash},{file_size}")
+
+        # Add metadata files
+        metadata = """Name: ansi2html
+    Version: 1.9.2
+    Summary: Convert ANSI colored text to HTML
+    Home-page: https://github.com/pycontribs/ansi2html
+    License: MIT
+    Classifier: Development Status :: 5 - Production/Stable
+    Classifier: Intended Audience :: Developers
+    Classifier: License :: OSI Approved :: MIT License
+    Classifier: Programming Language :: Python :: 3
+    """
+        wheel.writestr('ansi2html-1.9.2.dist-info/METADATA', metadata)
+        record_entries.append("ansi2html-1.9.2.dist-info/METADATA,,")
+
+        wheel_info = """Wheel-Version: 1.0
+    Generator: manual
+    Root-Is-Purelib: true
+    Tag: py3-none-any
+    """
+        wheel.writestr('ansi2html-1.9.2.dist-info/WHEEL', wheel_info)
+        record_entries.append("ansi2html-1.9.2.dist-info/WHEEL,,")
+
+        # Add top_level.txt
+        top_level = "ansi2html\n"
+        wheel.writestr('ansi2html-1.9.2.dist-info/top_level.txt', top_level)
+        record_entries.append("ansi2html-1.9.2.dist-info/top_level.txt,,")
+
+        # Add RECORD file (must be last and reference itself)
+        record_entries.append("ansi2html-1.9.2.dist-info/RECORD,,")
+        record_content = "\n".join(record_entries) + "\n"
+        wheel.writestr('ansi2html-1.9.2.dist-info/RECORD', record_content)
+
+    print('Created wheel:', wheel_name)
+    EOF
+
+        ${pkgs.python3}/bin/python create_wheel.py "$out/wheels"
+
+        echo "Prepared wheel cache:"
+        ls -la $out/wheels/
+  '';
+
   # Define the Python environment builder function once
   # This function takes filtered source and builds the Python environment
   buildPythonEnv = filteredSrc:
@@ -69,6 +159,7 @@ let
         paths = [
           basePythonEnv
           pythonVersions
+          wheelCache
           # Don't include the individual Python packages to avoid conflicts
         ];
       };
@@ -129,12 +220,18 @@ let
         envBuilder = buildReleaseEnv;
         name = "pytest-release";
         description = "Release tests with multiple Python versions";
-        inherit testConfig;
+        testConfig = testConfig // {
+          extraEnvVars = testConfig.extraEnvVars or { } // {
+            WHEEL_CACHE_DIR = "${wheelCache}";
+          };
+        };
         includePatterns = [ "src/**" "release_tests/**" "README.md" ];
         tests = [ "${src}/release_tests" ];
         # Set wheel path via the standard parameters
         wheelPath = "${httyWheel}/htty-${version}-py3-none-any.whl";
         wheelPathEnvVar = "htty_WHEEL_PATH";
+        # Add extra dependencies to make wheel cache available
+        extraDeps = [ wheelCache ];
       };
     };
   };
