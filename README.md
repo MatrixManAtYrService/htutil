@@ -1,7 +1,8 @@
 # htutil
 
-htutil is a tool for capturing the output of terminal applications
-Instead of having ANSI control sequences, `htutil`'s output looks like what the terminal would look like.
+htutil is a tool for making string-snapshots of terminal applications.
+Instead of having ANSI control sequences, `htutil`'s output looks like what a connected terminal would look like.
+It's useful for testing or improving subprocess transparency.
 
 It exposes `htutil` at the command line, and you can use python to `import htuil`.
 
