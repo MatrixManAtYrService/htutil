@@ -1,6 +1,6 @@
 # htutil
 
-htutil is a tool for capturing terminal applications appear.
+htutil is a tool for capturing how a terminal application will appear at some time.
 It handles the ANSI control sequences and gives you a human-friendly string instead.
 
 ```
