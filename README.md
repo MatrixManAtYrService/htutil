@@ -33,9 +33,7 @@ assert stdout.lines[0][1:].strip() == "VIM - Vi IMproved"
 
 Or maybe like this:
 
-```bash
-❯ vim | grep IMproved
-```
+!["vim showing an error if you try to pipe its output to grep"](error.png)
 
 But these approaches won't work.
 If you captured vim's output you'd see that it looks quite different than what you see in your terminal:
