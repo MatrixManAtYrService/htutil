@@ -13,7 +13,7 @@ You can run `htutil` at the command line, or you can use python to `import htuil
 
 ## Headless Terminal (`ht`)
 
-[ht](https://github.com/andyk/ht) lets you run subprocesses which are connected to a headless terminal.
+[ht](https://github.com/andyk/ht) connects a subprocess to a headless terminal.
 To understand why this is useful, consider the vim startup screen:
 ```
 ~                       VIM - Vi IMproved
