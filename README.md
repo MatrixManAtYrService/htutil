@@ -75,7 +75,7 @@ It aims to do everything in a single command:
 You can take multiple snapshots in a single go:
 
 ```
-❯ uv run htutil --rows 5 --cols 20 \
+❯ htutil --rows 5 --cols 20 \
   -k 'ihello,Escape' --snapshot \
   -k 'Vyp,Escape'    --snapshot \
   -k ':q!,Enter' \
