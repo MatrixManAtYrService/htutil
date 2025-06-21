@@ -312,8 +312,18 @@ class SubprocessController:
                 except OSError:
                     # Couldn't call waitpid, but we know the process exited
                     if self.exit_code is None:
-                        logger.warning(f"Could not determine exit code for process {self.pid} - waitpid failed")
-                        raise RuntimeError(f"Unable to determine exit code for process {self.pid}")
+                        if self._termination_initiated:
+                            # We terminated the process but can't get the exact exit code
+                            # Use conventional exit code for SIGKILL (128 + 9 = 137)
+                            self.exit_code = 137
+                            logger.warning(
+                                f"Could not determine exit code for process {self.pid} after termination - "
+                                f"waitpid failed, assuming exit code {self.exit_code}"
+                            )
+                        else:
+                            # Process exited on its own but we can't determine exit code
+                            logger.warning(f"Could not determine exit code for process {self.pid} - waitpid failed")
+                            raise RuntimeError(f"Unable to determine exit code for process {self.pid}")
 
                     if self._termination_initiated:
                         logger.debug(
