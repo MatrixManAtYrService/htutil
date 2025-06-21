@@ -3,10 +3,8 @@
 htutil is a tool for programatically capturing how a terminal application appears.
 It handles the ANSI control sequences and gives you a human-friendly string instead.
 
-```
-❯ htutil --snapshot -- vim | grep IMproved
-~               VIM - Vi IMproved
-```
+!["htutil taking a snapshot of a vim session"](improved.png)
+
 It wraps [a lightly modified version of `ht`](https://github.com/MatrixManAtYrService/ht).
 
 You can run `htutil` at the command line, or you can use python to `import htuil`.
@@ -70,25 +68,7 @@ It aims to do everything in a single command:
 
 You can take multiple snapshots in a single go:
 
-```
-❯ htutil --rows 5 --cols 20 \
-  -k 'ihello,Escape' --snapshot \
-  -k 'Vyp,Escape'    --snapshot \
-  -k ':q!,Enter' \
-  -- vim
-hello
-~
-~
-~
-
-----
-hello
-hello
-~
-~
-
-----
-```
+!["htutil taking several snapshots of a vim session at different times"](hellohello.png)
 
 In case you're vim-curious:
 
