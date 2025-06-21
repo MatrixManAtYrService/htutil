@@ -7,7 +7,8 @@ It handles the ANSI control sequences and gives you a human-friendly string inst
 ❯ htutil --snapshot -- vim | grep IMproved
 ~               VIM - Vi IMproved
 ```
-It wraps [a lightly modified version of `ht`](https://github.com/MatrixManAtYrService/ht), which does the heavy lifting.
+It wraps [a lightly modified version of `ht`](https://github.com/MatrixManAtYrService/ht).
+
 You can run `htutil` at the command line, or you can use python to `import htuil`.
 
 ## Headless Terminal (`ht`)
