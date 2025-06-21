@@ -7,12 +7,8 @@ It handles the ANSI control sequences and gives you a human-friendly string inst
 ❯ htutil --snapshot -- vim | grep IMproved
 ~               VIM - Vi IMproved
 ```
-
-It's useful for testing or for making your glue-code more transparent about what its subprocesses are up to.
-It exposes `htutil` at the command line, or you can use python to `import htuil`.
-These are more or less equivalent.
-
-It's mostly a collection of helper functions around [my fork of `ht`](https://github.com/MatrixManAtYrService/ht), which does the heavy lifting.
+It wraps [a lightly modified version of `ht`](https://github.com/MatrixManAtYrService/ht), which does the heavy lifting.
+You can run `htutil` at the command line, or you can use python to `import htuil`.
 
 ## Headless Terminal (`ht`)
 
