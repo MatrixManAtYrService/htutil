@@ -2,14 +2,15 @@
 Simple test using the htutil module to make assertions about terminal output.
 """
 
-import sys
 import os
-import pytest
+import sys
 import tempfile
 from textwrap import dedent
 from typing import Generator
-from htutil import run, Press, ht_process
 
+import pytest
+
+from htutil import Press, ht_process, run
 
 COLORED_HELLO_WORLD_SCRIPT = """
 print("\\033[31mhello\\033[0m")
@@ -79,13 +80,11 @@ def test_hello_world_after_exit(hello_world_script: str) -> None:
     ht = run(cmd, rows=6, cols=8)
     ht.send_keys(Press.ENTER)
     ht.send_keys(Press.ENTER)
-    ht.subprocess.wait()
-    assert ht.snapshot().text == (
-        "hello   \n        \nworld   \n        \ngoodbye \n        "
-    )
+    ht.subprocess_controller.wait()
+    assert ht.snapshot().text == ("hello   \n        \nworld   \n        \ngoodbye \n        ")
 
     exit_code = ht.exit()
-    assert ht.subprocess.exit_code == 0
+    assert ht.subprocess_controller.exit_code == 0
     assert exit_code == 0
 
 
@@ -95,20 +94,16 @@ def test_outputs(hello_world_script: str) -> None:
     ht.send_keys(Press.ENTER)  # First input() call
     ht.send_keys(Press.ENTER)  # Second input() call to let script finish
     # Wait for the script to complete naturally
-    ht.subprocess.wait()
+    ht.subprocess_controller.wait()
 
     # Be more tolerant of how output gets split across events
     # Just check that we got the expected content across all output events
-    all_output_text = "".join(
-        str(event.get("data", {}).get("seq", "")) for event in ht.get_output()
-    )
+    all_output_text = "".join(str(event.get("data", {}).get("seq", "")) for event in ht.get_output())
 
     # Should contain all the expected text (now that we let it complete)
     assert "hello" in all_output_text, f"Expected 'hello' in output: {all_output_text}"
     assert "world" in all_output_text, f"Expected 'world' in output: {all_output_text}"
-    assert "goodbye" in all_output_text, (
-        f"Expected 'goodbye' in output: {all_output_text}"
-    )
+    assert "goodbye" in all_output_text, f"Expected 'goodbye' in output: {all_output_text}"
 
     # Should have at least some output events
     assert len(ht.get_output()) > 0, "Should have at least one output event"
@@ -146,8 +141,8 @@ def test_html_snapshot_with_colors(colored_hello_world_script: str) -> None:
     assert '<span class="ansi32">world</span>' in snapshot2.html
 
     # Clean up
-    proc.subprocess.terminate()
-    proc.subprocess.wait(timeout=1.0)
+    proc.subprocess_controller.terminate()
+    proc.subprocess_controller.wait(timeout=1.0)
     proc.terminate()
     proc.wait(timeout=2.0)
 
@@ -180,7 +175,7 @@ def test_exit_while_subprocess_running(hello_world_script: str) -> None:
     assert exit_code == 0
 
     # Process should be terminated
-    assert proc.proc.poll() is not None, "ht process should have exited"
+    assert proc.ht_proc.poll() is not None, "ht process should have exited"
 
 
 def test_exit_after_subprocess_finished(hello_world_script: str) -> None:
@@ -193,7 +188,7 @@ def test_exit_after_subprocess_finished(hello_world_script: str) -> None:
     proc.send_keys(Press.ENTER)  # Second input()
 
     # Wait for subprocess to finish
-    proc.subprocess.wait(timeout=3.0)
+    proc.subprocess_controller.wait(timeout=3.0)
 
     # Take final snapshot
     snapshot = proc.snapshot()
@@ -204,7 +199,7 @@ def test_exit_after_subprocess_finished(hello_world_script: str) -> None:
     assert exit_code == 0
 
     # Process should be terminated
-    assert proc.proc.poll() is not None, "ht process should have exited"
+    assert proc.ht_proc.poll() is not None, "ht process should have exited"
 
 
 # CLI Example Tests - These translate CLI examples to Python API usage
@@ -223,9 +218,7 @@ def test_vim_startup_screen() -> None:
     snapshot = proc.snapshot()
 
     # Look for the line containing "IMproved" (like grep would)
-    improved_line = next(
-        line for line in snapshot.text.split("\n") if "IMproved" in line
-    )
+    improved_line = next(line for line in snapshot.text.split("\n") if "IMproved" in line)
     assert improved_line == "~               VIM - Vi IMproved                 "
 
     # Exit vim
@@ -245,14 +238,13 @@ def test_vim_startup_screen_context_manager() -> None:
         snapshot = proc.snapshot()
         # context manager terminates subprocess on context exit
 
-    improved_line = next(
-        line for line in snapshot.text.split("\n") if "IMproved" in line
-    )
+    improved_line = next(line for line in snapshot.text.split("\n") if "IMproved" in line)
     assert improved_line == "~               VIM - Vi IMproved                 "
 
 
 def test_vim_duplicate_line() -> None:
-    """Test equivalent to: htutil --rows 5 --cols 20 -k 'ihello,Escape' --snapshot -k 'Vyp,Escape' --snapshot -k ':q!,Enter' -- vim"""
+    """Test equivalent to: htutil --rows 5 --cols 20 -k 'ihello,Escape' --snapshot
+    -k 'Vyp,Escape' --snapshot -k ':q!,Enter' -- vim"""
     try:
         vim_path = os.environ["HTUTIL_TEST_VIM_TARGET"]
     except KeyError:
@@ -279,9 +271,7 @@ def test_vim_duplicate_line() -> None:
     snapshot2 = proc.snapshot()
     text_lines = [line.strip() for line in snapshot2.text.split("\n") if line.strip()]
     hello_lines = [line for line in text_lines if "hello" in line]
-    assert len(hello_lines) >= 2, (
-        f"Expected duplicated 'hello' lines, got: {text_lines}"
-    )
+    assert len(hello_lines) >= 2, f"Expected duplicated 'hello' lines, got: {text_lines}"
 
     # Send keys: ":q!,Enter" (quit without saving)
     proc.send_keys(":q!")

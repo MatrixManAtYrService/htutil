@@ -4,7 +4,7 @@ Based on the key parsing logic in ht's stdio.rs file.
 """
 
 from enum import Enum
-from typing import Union, List
+from typing import List, Union
 
 
 class Press(Enum):

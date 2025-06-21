@@ -56,6 +56,28 @@ dev = [
     "hatchling>=1.27.0",
 ]
 
+[tool.ruff]
+# Set line length to something more reasonable
+line-length = 120
+
+[tool.ruff.lint]
+# Enable import sorting (isort) rules
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort (import sorting)
+]
+
+# Auto-fix import sorting and other fixable issues
+fixable = ["ALL"]
+
+[tool.ruff.lint.isort]
+# Configure import sorting behavior
+known-first-party = ["htutil"]
+force-single-line = false
+combine-as-imports = true
+
 [tool.pyright]
 # Make pyright stricter for source code only
 typeCheckingMode = "strict"

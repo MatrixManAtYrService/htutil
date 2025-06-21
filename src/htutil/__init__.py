@@ -1,10 +1,23 @@
 from htutil.ht import (
-    run as run,
-    SnapshotResult as SnapshotResult,
-    ht_process as ht_process,
+    HTBinary,
+    SnapshotResult,
+    ht_binary,
+    ht_process,
+    run,
 )
 from htutil.keys import (
-    Press as Press,
-    KeyInput as KeyInput,
-    key_to_string as key_to_string,
+    KeyInput,
+    Press,
+    key_to_string,
 )
+
+__all__ = [
+    "HTBinary",
+    "SnapshotResult",
+    "ht_binary",
+    "ht_process",
+    "run",
+    "KeyInput",
+    "Press",
+    "key_to_string",
+]

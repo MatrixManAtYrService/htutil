@@ -7,9 +7,9 @@ import sys
 import tempfile
 from io import StringIO
 from textwrap import dedent
-from typing import Tuple, Callable, Any
+from typing import Any, Callable, Tuple
 
-from htutil import run, ht_process
+from htutil import ht_process, run
 
 
 def capture_debug_logs(func: Callable[[], Any]) -> Tuple[Any, str]:
@@ -62,7 +62,7 @@ def test_python_script_natural_exit() -> None:
             proc = run(cmd, rows=10, cols=40)
 
             # Wait for the script to finish naturally
-            proc.subprocess.wait()
+            proc.subprocess_controller.wait()
             proc.exit()
 
             return "test completed"
@@ -70,13 +70,9 @@ def test_python_script_natural_exit() -> None:
         _, logs = capture_debug_logs(run_test)
 
         # Check that the logs contain the "exited on its own" message
-        assert "has exited on its own" in logs, (
-            f"Expected 'exited on its own' in logs: {logs}"
-        )
+        assert "has exited on its own" in logs, f"Expected 'exited on its own' in logs: {logs}"
         # Check that it does NOT contain the "after termination signal" message
-        assert "after termination signal" not in logs, (
-            f"Unexpected 'after termination signal' in logs: {logs}"
-        )
+        assert "after termination signal" not in logs, f"Unexpected 'after termination signal' in logs: {logs}"
     finally:
         import os
 
@@ -119,13 +115,9 @@ def test_python_script_context_manager_forced_exit() -> None:
         _, logs = capture_debug_logs(run_test)
 
         # Check that the logs contain the "after termination signal" message
-        assert "after termination signal" in logs, (
-            f"Expected 'after termination signal' in logs: {logs}"
-        )
+        assert "after termination signal" in logs, f"Expected 'after termination signal' in logs: {logs}"
         # Check that it does NOT contain the "exited on its own" message
-        assert "exited on its own" not in logs, (
-            f"Unexpected 'exited on its own' in logs: {logs}"
-        )
+        assert "exited on its own" not in logs, f"Unexpected 'exited on its own' in logs: {logs}"
     finally:
         import os
 
@@ -171,8 +163,8 @@ def test_python_script_sigterm_responsive() -> None:
             time.sleep(0.2)
 
             # Explicitly terminate the subprocess
-            proc.subprocess.terminate()
-            proc.subprocess.wait()
+            proc.subprocess_controller.terminate()
+            proc.subprocess_controller.wait()
             proc.exit()
 
             return "test completed"
@@ -181,13 +173,9 @@ def test_python_script_sigterm_responsive() -> None:
 
         # Should see both the SIGTERM message and the "after termination signal" message
         assert "Sending SIGTERM" in logs, f"Expected 'Sending SIGTERM' in logs: {logs}"
-        assert "after termination signal" in logs, (
-            f"Expected 'after termination signal' in logs: {logs}"
-        )
+        assert "after termination signal" in logs, f"Expected 'after termination signal' in logs: {logs}"
         # Should NOT see "exited on its own"
-        assert "exited on its own" not in logs, (
-            f"Unexpected 'exited on its own' in logs: {logs}"
-        )
+        assert "exited on its own" not in logs, f"Unexpected 'exited on its own' in logs: {logs}"
     finally:
         import os
 
@@ -233,12 +221,12 @@ def test_python_script_sigterm_ignore_needs_sigkill() -> None:
             time.sleep(0.2)
 
             # Try terminate first (should be ignored)
-            proc.subprocess.terminate()
+            proc.subprocess_controller.terminate()
             time.sleep(0.5)  # Give it time to ignore the signal
 
             # Now force kill it
-            proc.subprocess.kill()
-            proc.subprocess.wait()
+            proc.subprocess_controller.kill()
+            proc.subprocess_controller.wait()
             proc.exit()
 
             return "test completed"
@@ -248,13 +236,9 @@ def test_python_script_sigterm_ignore_needs_sigkill() -> None:
         # Should see both SIGTERM and SIGKILL messages
         assert "Sending SIGTERM" in logs, f"Expected 'Sending SIGTERM' in logs: {logs}"
         assert "Sending SIGKILL" in logs, f"Expected 'Sending SIGKILL' in logs: {logs}"
-        assert "after termination signal" in logs, (
-            f"Expected 'after termination signal' in logs: {logs}"
-        )
+        assert "after termination signal" in logs, f"Expected 'after termination signal' in logs: {logs}"
         # Should NOT see "exited on its own"
-        assert "exited on its own" not in logs, (
-            f"Unexpected 'exited on its own' in logs: {logs}"
-        )
+        assert "exited on its own" not in logs, f"Unexpected 'exited on its own' in logs: {logs}"
     finally:
         import os
 
@@ -268,7 +252,7 @@ def test_natural_exit_shows_correct_message() -> None:
         proc = run("echo hello", rows=5, cols=20)
 
         # Wait for the process to finish naturally
-        proc.subprocess.wait()
+        proc.subprocess_controller.wait()
         proc.exit()
 
         return "test completed"
@@ -278,13 +262,7 @@ def test_natural_exit_shows_correct_message() -> None:
     # Should see "exited on its own" message
     assert "exited on its own" in logs, f"Expected 'exited on its own' in logs: {logs}"
     # Should NOT see "after termination signal"
-    assert "after termination signal" not in logs, (
-        f"Unexpected 'after termination signal' in logs: {logs}"
-    )
+    assert "after termination signal" not in logs, f"Unexpected 'after termination signal' in logs: {logs}"
     # Should NOT see any SIGTERM/SIGKILL messages
-    assert "Sending SIGTERM" not in logs, (
-        f"Unexpected 'Sending SIGTERM' in logs: {logs}"
-    )
-    assert "Sending SIGKILL" not in logs, (
-        f"Unexpected 'Sending SIGKILL' in logs: {logs}"
-    )
+    assert "Sending SIGTERM" not in logs, f"Unexpected 'Sending SIGTERM' in logs: {logs}"
+    assert "Sending SIGKILL" not in logs, f"Unexpected 'Sending SIGKILL' in logs: {logs}"

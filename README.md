@@ -36,7 +36,9 @@ If you captured what vim is writing to /dev/tty you'd see something like this:
 Vi IMproved[6;37Hversion 9.0.2136[7;33Hby Bram Moolenaar et al.[8;24HVim is open source and freely distributable[10;32HHelp poor children in Uganda!
 ```
 
-Working with `vim`'s actual output means working in a different world than what you actually see in your terminal.
+`[6;37H` here means "row 6 column 37".
+These numbers would be different if my terminal had been a different width when I captured that string.
+This makes working with `vim`'s actual output quite different than working with the strings that you actually see on your screen.
 
 [ht](https://github.com/andyk/ht) simplifies this by connecting the subprocess (`vim` in this case) to a fake terminal.
 It lets you see how the output is rendered, rather than working with the output prior to rendering.
@@ -89,8 +91,9 @@ hello
 ```
 
 In case you're vim-curious:
-`ihello,Escape` enters insert mode types "hello" and goes back to normal mode.
-`Vyp,Escape` enters line-wise visual mode with the the current line selected, yanks it, and puts it (so now there are two hello lines), and then goes back to normal mode.
+
+- `ihello,Escape` enters insert mode types "hello" and goes back to normal mode.
+- `Vyp,Escape` enters line-wise visual mode with the the current line selected, yanks it, and puts it (so now there are two hello lines), and then goes back to normal mode.
 
 For more on `htutil` CLI usage, run `htutil --help` or see the [docs]() TODO: fix this link.
 
@@ -131,89 +134,5 @@ proc.exit()                    # exit ht
 For more on using `htutil` as a python library, see the [docs]() TODO: fix this link.
 
 # Contributing
-### Prose
 
-If you're looking at something that is obviously a bug, and you have a fix for it that isn't too adventurous, please submit a PR.
-Feedback of any other sort (bugs, feature requests, etc) can go in an issue.
-
-### Code
-
-#### With Nix
-
-htutil uses an experimental consistency framework: [checkdef](https://github.com/MatrixManAtYrService/checkdef) that requires nix.
-Commands to try:
-
-```
-nix run .#checklist-fast    # linters and such
-nix run .#checklist-full    # the fast checks, plus unit tests
-nix run .#checklist-release # the full checks, plus release tests
-```
-
-These also support verbose mode `nix run .#checklist-release -- -v`
-
-The nix devshell is configured with `uv` for easy access to the python environment, so you can run commands like this:
-```
-uv run pytest ./tests
-```
-
-If you're not already in an interactive nix devshell (looking at you, AI agents), consider this instead:
-```
-nix develop --command uv run pytest ./tests
-```
-
-To ensure that my editor has access to the declared environment (python and otherwise), I like to run it in the project devshell:
-```
-nix develop --command uv run hx                             # feeling focused
-nix develop --command uv run open /Applications/Cursor.app  # feeling reckless
-```
-
-You can access the wheel for your system architecture (with bundled `ht`) like so:
-
-```
-nix build .#htutil-wheel
-```
-
-#### Without Nix
-
-`htutil` is set up for use with `uv`.
-
-```
-# Create a virtual environment and install dependencies
-uv sync --dev
-
-# Run the unit tests
-uv run pytest tests
-```
-
-**Note**: [Some tests](tests/test_ht_util_cli.py) require `vim` to be installed (it is used as a test target).
-Nix is the best way to inject the version of vim that those tests depend on, but you can probably also get away with just ignoring them.
-
-To build a wheel that includes the `ht` binary, use the provided Makefile:
-
-```bash
-# be sure cargo is installed first
-make wheel
-```
-
-Once you have a wheel, you can run the release tests:
-
-```bash
-# Set the wheel path for release tests
-export HTUTIL_WHEEL_PATH=$(pwd)/dist/htutil-0.1.0-py3-none-any.whl
-
-# Run release tests (requires multiple Python versions: 3.10, 3.11, 3.12)
-uv run pytest release_tests/ -v -s
-
-# Or run specific test classes
-uv run pytest release_tests/test_release.py::TestNixPython -v -s
-uv run pytest release_tests/test_release.py::TestNixPythonConsistency -v -s
-```
-
-The release tests verify that:
-- The wheel installs correctly across Python versions
-- CLI commands work as expected
-- Python API imports and functions properly
-- Terminal sizing and text wrapping work correctly
-- Results are consistent across Python versions
-
-**Note**: Release tests require Python 3.10, 3.11, and 3.12 to be available on your system. You can install multiple Python versions using [pyenv](https://github.com/pyenv/pyenv) or your system package manager.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for information on how to contribute to this project.

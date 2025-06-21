@@ -1,26 +1,25 @@
 """Tests for HTUTIL_HT_BIN environment variable functionality."""
 
 import os
-import tempfile
-import pytest
-from pathlib import Path
-from unittest.mock import patch
 import stat
+import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest.mock import patch
+
+import pytest
 
 if TYPE_CHECKING:
-    from pytest import MonkeyPatch, LoggingPlugin
+    from pytest import LoggingPlugin, MonkeyPatch
 
-# Import the actual get_ht_binary function from ht.py
-from htutil.ht import get_ht_binary
+# Import the new ht_binary context manager from ht.py
+from htutil.ht import ht_binary
 
 
 class TestHTUtilHTBin:
     """Test cases for HTUTIL_HT_BIN environment variable handling."""
 
-    def test_no_env_var_no_bundled_uses_system_ht(
-        self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin"
-    ) -> None:
+    def test_no_env_var_no_bundled_uses_system_ht(self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin") -> None:
         """Test that without HTUTIL_HT_BIN and no bundled ht, system ht is used."""
         # Set logging level to capture WARNING messages
         with caplog.at_level("WARNING", logger="htutil.ht"):
@@ -35,19 +34,12 @@ class TestHTUtilHTBin:
                 with patch("shutil.which") as mock_which:
                     mock_which.return_value = "/usr/bin/ht"
 
-                    result = get_ht_binary()
-                    assert result == "/usr/bin/ht"
-                    assert (
-                        "Using system ht binary from PATH: /usr/bin/ht" in caplog.text
-                    )
-                    assert (
-                        "Expect trouble if this ht does not have the changes in this fork"
-                        in caplog.text
-                    )
+                    with ht_binary() as ht:
+                        assert ht.path == "/usr/bin/ht"
+                        assert "Using system ht binary from PATH: /usr/bin/ht" in caplog.text
+                        assert "Expect trouble if this ht does not have the changes in this fork" in caplog.text
 
-    def test_valid_env_var_is_used(
-        self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin"
-    ) -> None:
+    def test_valid_env_var_is_used(self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin") -> None:
         """Test that a valid HTUTIL_HT_BIN path is used."""
         with caplog.at_level("INFO", logger="htutil.ht"):
             with tempfile.NamedTemporaryFile(delete=False) as tmp:
@@ -61,11 +53,9 @@ class TestHTUtilHTBin:
             monkeypatch.setenv("HTUTIL_HT_BIN", tmp_path)
 
             try:
-                result = get_ht_binary()
-                assert result == tmp_path
-                assert (
-                    "Using user-specified ht binary from HTUTIL_HT_BIN" in caplog.text
-                )
+                with ht_binary() as ht:
+                    assert ht.path == tmp_path
+                    assert "Using user-specified ht binary from HTUTIL_HT_BIN" in caplog.text
             finally:
                 os.unlink(tmp_path)
 
@@ -76,18 +66,14 @@ class TestHTUtilHTBin:
         monkeypatch.setenv("HTUTIL_HT_BIN", nonexistent_path)
 
         with pytest.raises(RuntimeError) as exc_info:
-            get_ht_binary()
+            with ht_binary():
+                pass
 
         error_msg = str(exc_info.value)
-        assert (
-            f"HTUTIL_HT_BIN='{nonexistent_path}' is not a valid executable file"
-            in error_msg
-        )
+        assert f"HTUTIL_HT_BIN='{nonexistent_path}' is not a valid executable file" in error_msg
         assert "Please check that the path exists and is executable" in error_msg
 
-    def test_non_executable_env_var_raises_error(
-        self, monkeypatch: "MonkeyPatch"
-    ) -> None:
+    def test_non_executable_env_var_raises_error(self, monkeypatch: "MonkeyPatch") -> None:
         """Test that non-executable HTUTIL_HT_BIN path raises helpful error."""
         # Create a temporary non-executable file
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
@@ -102,20 +88,16 @@ class TestHTUtilHTBin:
 
         try:
             with pytest.raises(RuntimeError) as exc_info:
-                get_ht_binary()
+                with ht_binary():
+                    pass
 
             error_msg = str(exc_info.value)
-            assert (
-                f"HTUTIL_HT_BIN='{tmp_path}' is not a valid executable file"
-                in error_msg
-            )
+            assert f"HTUTIL_HT_BIN='{tmp_path}' is not a valid executable file" in error_msg
             assert "Please check that the path exists and is executable" in error_msg
         finally:
             os.unlink(tmp_path)
 
-    def test_bundled_ht_used_when_present(
-        self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin"
-    ) -> None:
+    def test_bundled_ht_used_when_present(self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin") -> None:
         """Test that bundled ht is used when present and no env var is set."""
         # Set logging level to capture INFO messages
         with caplog.at_level("INFO", logger="htutil.ht"):
@@ -131,18 +113,16 @@ class TestHTUtilHTBin:
                 # Mock the as_file context manager
                 with patch("importlib.resources.as_file") as mock_as_file:
                     mock_context = mock_as_file.return_value
-                    mock_context.__enter__.return_value = "/tmp/ht_test"
+                    mock_context.__enter__.return_value = Path("/tmp/ht_test")
                     mock_context.__exit__.return_value = None
 
                     # Mock os.chmod
                     with patch("os.chmod"):
-                        result = get_ht_binary()
-                        assert result == "/tmp/ht_test"
-                        assert "Using bundled ht binary" in caplog.text
+                        with ht_binary() as ht:
+                            assert ht.path == "/tmp/ht_test"
+                            assert "Using bundled ht binary" in caplog.text
 
-    def test_env_var_overrides_bundled(
-        self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin"
-    ) -> None:
+    def test_env_var_overrides_bundled(self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin") -> None:
         """Test that HTUTIL_HT_BIN overrides bundled ht when both exist."""
         # Set logging level to capture INFO messages
         with caplog.at_level("INFO", logger="htutil.ht"):
@@ -169,18 +149,13 @@ class TestHTUtilHTBin:
                     mock_exists.side_effect = exists_side_effect
 
                     with patch("pathlib.Path.is_file", return_value=True):
-                        result = get_ht_binary()
-                        assert result == tmp_path
-                        assert (
-                            "Using user-specified ht binary from HTUTIL_HT_BIN"
-                            in caplog.text
-                        )
+                        with ht_binary() as ht:
+                            assert ht.path == tmp_path
+                            assert "Using user-specified ht binary from HTUTIL_HT_BIN" in caplog.text
             finally:
                 os.unlink(tmp_path)
 
-    def test_empty_env_var_ignored(
-        self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin"
-    ) -> None:
+    def test_empty_env_var_ignored(self, monkeypatch: "MonkeyPatch", caplog: "LoggingPlugin") -> None:
         """Test that empty HTUTIL_HT_BIN is ignored and falls back to system ht."""
         # Set logging level to capture WARNING messages
         with caplog.at_level("WARNING", logger="htutil.ht"):
@@ -194,15 +169,10 @@ class TestHTUtilHTBin:
                 with patch("shutil.which") as mock_which:
                     mock_which.return_value = "/usr/bin/ht"
 
-                    result = get_ht_binary()
-                    assert result == "/usr/bin/ht"
-                    assert (
-                        "Using system ht binary from PATH: /usr/bin/ht" in caplog.text
-                    )
-                    assert (
-                        "Expect trouble if this ht does not have the changes in this fork"
-                        in caplog.text
-                    )
+                    with ht_binary() as ht:
+                        assert ht.path == "/usr/bin/ht"
+                        assert "Using system ht binary from PATH: /usr/bin/ht" in caplog.text
+                        assert "Expect trouble if this ht does not have the changes in this fork" in caplog.text
 
     def test_helpful_error_message_content(self, monkeypatch: "MonkeyPatch") -> None:
         """Test that helpful error message is shown when no ht binary is found anywhere."""
@@ -218,7 +188,8 @@ class TestHTUtilHTBin:
                 mock_which.return_value = None
 
                 with pytest.raises(RuntimeError) as exc_info:
-                    get_ht_binary()
+                    with ht_binary():
+                        pass
 
                 error_msg = str(exc_info.value)
                 # Check that helpful error message parts are present
@@ -232,6 +203,35 @@ class TestHTUtilHTBin:
                 for part in expected_parts:
                     assert part in error_msg, f"Missing expected part: {part}"
 
+    def test_ht_binary_helper_methods(self, monkeypatch: "MonkeyPatch") -> None:
+        """Test that HTBinary helper methods work correctly."""
+        # Create a temporary executable file
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(b"#!/bin/sh\necho 'mock ht'\n")
+            tmp_path = tmp.name
+
+        # Make it executable
+        os.chmod(tmp_path, os.stat(tmp_path).st_mode | stat.S_IEXEC)
+
+        # Set the environment variable
+        monkeypatch.setenv("HTUTIL_HT_BIN", tmp_path)
+
+        try:
+            with ht_binary() as ht:
+                # Test build_command method
+                cmd = ht.build_command("--help", "--version")
+                assert cmd == [tmp_path, "--help", "--version"]
+
+                # Test that run_subprocess method returns a Popen object
+                import subprocess
+
+                proc = ht.run_subprocess("--help", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                assert isinstance(proc, subprocess.Popen)
+                proc.terminate()  # Clean up
+                proc.wait()
+        finally:
+            os.unlink(tmp_path)
+
 
 class TestHTBinaryIntegration:
     """Integration tests for ht binary resolution in actual htutil usage."""
@@ -240,8 +240,12 @@ class TestHTBinaryIntegration:
         not Path("src/htutil/ht.py").exists(),
         reason="ht.py not found - run from project root",
     )
-    def test_patched_ht_py_imports(self):
-        """Test that the patched ht.py can be imported successfully."""
-        # This test assumes the patch has been applied
-        # In a real scenario, you might want to apply the patch in a fixture
-        pass
+    def test_ht_binary_context_manager_usage(self):
+        """Test that the ht_binary context manager can be used successfully."""
+        # Test that we can use the context manager without errors
+        with ht_binary() as ht:
+            assert hasattr(ht, "path")
+            assert hasattr(ht, "build_command")
+            assert hasattr(ht, "run_subprocess")
+            assert isinstance(ht.path, str)
+            assert len(ht.path) > 0

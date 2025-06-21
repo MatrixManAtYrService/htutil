@@ -9,7 +9,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from textwrap import dedent
-from typing import List, Union, Generator
+from typing import Generator, List, Union
 
 import pytest
 
@@ -25,27 +25,33 @@ class Pattern:
     lines: List[Union[str, re.Pattern[str]]]
 
 
-def terminal_contents(
-    *, actual_snapshots: str, expected_patterns: List[Pattern]
-) -> bool:
+def terminal_contents(*, actual_snapshots: str, expected_patterns: List[Pattern]) -> bool:
     """Check if the actual snapshot matches the expected patterns in order."""
-    actual_lines = actual_snapshots.strip().split("\n")
+    # Split into lines without stripping leading/trailing newlines to preserve empty lines
+    actual_lines = actual_snapshots.split("\n")
+
+    # Remove trailing empty lines to avoid issues with terminal padding,
+    # but preserve leading empty lines and strip trailing whitespace from non-empty lines
+    while actual_lines and actual_lines[-1].strip() == "":
+        actual_lines.pop()
+
+    # Strip trailing whitespace from each line but preserve empty lines
+    actual_lines = [line.rstrip() for line in actual_lines]
 
     pattern_idx = 0
     for pattern_idx, pattern in enumerate(expected_patterns):
         # Check if there are enough lines left for this pattern
         if len(actual_lines) < len(pattern.lines):
             print(
-                f"Pattern {pattern_idx}: Not enough actual lines. Expected {len(pattern.lines)}, got {len(actual_lines)}"
+                f"Pattern {pattern_idx}: Not enough actual lines. "
+                f"Expected {len(pattern.lines)}, got {len(actual_lines)}"
             )
             return False
 
         # Match each line in the pattern
         for line_idx, expected_line in enumerate(pattern.lines):
             if line_idx >= len(actual_lines):
-                print(
-                    f"Pattern {pattern_idx}, line {line_idx}: Actual snapshot too short"
-                )
+                print(f"Pattern {pattern_idx}, line {line_idx}: Actual snapshot too short")
                 return False
 
             actual_line = actual_lines[line_idx]
@@ -54,15 +60,14 @@ def terminal_contents(
                 # This is a compiled regex pattern
                 if not expected_line.match(actual_line):
                     print(
-                        f"Pattern {pattern_idx}, line {line_idx}: Regex {expected_line.pattern} failed to match '{actual_line}'"
+                        f"Pattern {pattern_idx}, line {line_idx}: Regex {expected_line.pattern} "
+                        f"failed to match '{actual_line}'"
                     )
                     return False
             else:
                 # This is a string that should be matched exactly
                 if expected_line != actual_line:
-                    print(
-                        f"Pattern {pattern_idx}, line {line_idx}: Expected '{expected_line}', got '{actual_line}'"
-                    )
+                    print(f"Pattern {pattern_idx}, line {line_idx}: Expected '{expected_line}', got '{actual_line}'")
                     return False
 
         # Remove the matched lines from actual_lines for the next pattern
@@ -186,7 +191,7 @@ def test_vim() -> None:
                     "~",
                     "~               VIM - Vi IMproved",
                     "~",
-                    re.compile(r"~ *version.*"),  # version number
+                    "~                version 9.1.1336",
                     "~            by Bram Moolenaar et al.",
                     "~  Vim is open source and freely distributable",
                     "~",
@@ -235,3 +240,48 @@ def test_vim() -> None:
             ),
         ],
     )
+
+
+def test_empty_line_preservation():
+    """Test that CLI preserves empty lines at the beginning of output."""
+    import os
+    import tempfile
+
+    # Create a script that outputs an empty line followed by "hello"
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+        f.write("print()  # Empty line\n")
+        f.write('print("hello")\n')
+        script_path = f.name
+
+    try:
+        cmd = [
+            *(sys.executable, "-m"),
+            "htutil.cli",
+            "--snapshot",
+            "--",
+            sys.executable,
+            script_path,
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
+
+        # Parse the snapshot using the same logic as other tests
+        snapshots = result.stdout.split("----\n")
+        snapshots = [s for s in snapshots if s.strip()]
+        assert len(snapshots) == 1, f"Expected 1 snapshot, got {len(snapshots)}"
+
+        # Verify using terminal_contents function
+        assert terminal_contents(
+            actual_snapshots=snapshots[0],
+            expected_patterns=[
+                Pattern(
+                    lines=[
+                        "",  # Empty first line
+                        "hello",  # Second line with content
+                    ]
+                ),
+            ],
+        )
+
+    finally:
+        os.unlink(script_path)

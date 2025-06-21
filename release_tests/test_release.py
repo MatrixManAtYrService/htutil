@@ -3,13 +3,13 @@ Release tests for htutil using Python's virtualenv.
 Run pytest with `-s` to see print output.
 """
 
+import os
+import shutil
 import subprocess
 import tempfile
-import shutil
 from pathlib import Path
-from typing import Tuple
-import os
 from textwrap import dedent
+from typing import Tuple
 
 import pytest
 
@@ -34,9 +34,7 @@ class PythonEnvironment:
 
         print(f"🐍 Setting up environment for Python {self.python_version}")
 
-        self.temp_dir = Path(
-            tempfile.mkdtemp(prefix=f"htutil-py{self.python_version}-")
-        )
+        self.temp_dir = Path(tempfile.mkdtemp(prefix=f"htutil-py{self.python_version}-"))
         self.venv_path = self.temp_dir / "test-venv"
 
         setup_script = self.temp_dir / "setup.sh"
@@ -107,9 +105,7 @@ class PythonEnvironment:
 
             print(f"🏁 Command completed with exit code: {result.returncode}")
 
-            return result.returncode, result.stdout + (
-                result.stderr if result.stderr else ""
-            )
+            return result.returncode, result.stdout + (result.stderr if result.stderr else "")
         except subprocess.TimeoutExpired:
             print("⏰ Command timed out after 5 minutes")
             return 1, "Command timed out after 5 minutes"
@@ -251,9 +247,7 @@ class TestNixPython:
 
     def test_api_import(self, python_version, python_env):
         """Test that htutil can be imported."""
-        exit_code, output = python_env.run_command(
-            "python -c \"import htutil; print(f'Imported: {htutil.__name__}')\""
-        )
+        exit_code, output = python_env.run_command("python -c \"import htutil; print(f'Imported: {htutil.__name__}')\"")
         assert exit_code == 0, f"Import failed: {output}"
         assert "Imported: htutil" in output
 
