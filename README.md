@@ -57,7 +57,7 @@ It lets you see how the output is rendered, rather than working with the output 
 ## htutil CLI
 
 Working with `ht` at the command line is a bit like having a chat session with the headless terminal.
-Ask it to send keystrokes or to take snapshots by writing JSON objects to stdin and the answers come back to you on stdout in the form of other JSON objects.
+You type in JSON to make requests, it prints JSON as a responce to those requests.
 
 The `htutil` CLI is not interactive like this.
 It aims to do everything in a single command:
