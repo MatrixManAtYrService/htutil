@@ -43,7 +43,7 @@ If you captured vim's output you'd see that it looks quite different than what y
 Vi IMproved[6;37Hversion 9.0.2136[7;33Hby Bram Moolenaar et al.[8;24HVim is open source and freely distributable[10;32HHelp poor children in Uganda!
 ```
 
-[ht](https://github.com/andyk/ht) raw output like you see above and turns them into strings like the ones you're used to seeing in a terminal.
+[ht](https://github.com/andyk/ht) reads raw output like you see above and renders it as if a terminal was attached.
 `htutil` provides a convenient way to use `ht`
 
 ## htutil CLI
