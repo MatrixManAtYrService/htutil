@@ -20,9 +20,9 @@ jobs:
       - name: Cache Nix store
         uses: nix-community/cache-nix-action@v6
         with:
-          # Static cache key - let Nix handle content-based rebuilding internally
-          primary-key: ${{ runner.os }}-nix-store
-          restore-prefixes-first-match: ${{ runner.os }}-nix-
+          # Unified cache key - Nix is content-addressed and handles cross-platform automatically
+          primary-key: nix-store
+          restore-prefixes-first-match: nix-
           paths: |
             ~/.cache/nix
             /nix/store
@@ -61,10 +61,10 @@ jobs:
       - name: Cache Nix store
         uses: nix-community/cache-nix-action@v6
         with:
-          # Static cache key - let Nix handle content-based rebuilding internally
-          # The Nix store is self-managing and content-addressed
-          primary-key: ${{ runner.os }}-${{ matrix.target }}-nix-store
-          restore-prefixes-first-match: ${{ runner.os }}-${{ matrix.target }}-nix-
+          # Unified cache key - Nix is content-addressed and handles cross-platform automatically
+          # All platforms can share the same cache since Nix isolates by content hash
+          primary-key: nix-store
+          restore-prefixes-first-match: nix-
           paths: |
             ~/.cache/nix
             /nix/store
