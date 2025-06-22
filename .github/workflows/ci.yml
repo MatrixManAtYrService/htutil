@@ -20,7 +20,8 @@ jobs:
       - name: Cache Nix store
         uses: nix-community/cache-nix-action@v6
         with:
-          primary-key: ${{ runner.os }}-nix-${{ hashFiles('flake.lock', 'flake.nix', 'pyproject.toml', 'src/**', 'tests/**', 'nix/**') }}
+          # Static cache key - let Nix handle content-based rebuilding internally
+          primary-key: ${{ runner.os }}-nix-store
           restore-prefixes-first-match: ${{ runner.os }}-nix-
           paths: |
             ~/.cache/nix
@@ -60,7 +61,9 @@ jobs:
       - name: Cache Nix store
         uses: nix-community/cache-nix-action@v6
         with:
-          primary-key: ${{ runner.os }}-${{ matrix.target }}-nix-${{ hashFiles('flake.lock', 'flake.nix', 'pyproject.toml', 'src/**', 'tests/**', 'nix/**') }}
+          # Static cache key - let Nix handle content-based rebuilding internally
+          # The Nix store is self-managing and content-addressed
+          primary-key: ${{ runner.os }}-${{ matrix.target }}-nix-store
           restore-prefixes-first-match: ${{ runner.os }}-${{ matrix.target }}-nix-
           paths: |
             ~/.cache/nix
@@ -70,7 +73,10 @@ jobs:
         run: nix build .#htty-wheel
 
       - name: Copy wheel
-        run: cp result/*.whl ./
+        run: |
+          # Copy the wheel using the filename from the build
+          WHEEL_NAME=$(cat result/wheel-filename.txt)
+          cp "result/$WHEEL_NAME" ./
 
       - name: Upload wheel
         uses: actions/upload-artifact@v4

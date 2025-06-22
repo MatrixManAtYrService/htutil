@@ -171,3 +171,4 @@ ht-build/
 .swp
 
 src/htty/_bundled/
+.vscode/
