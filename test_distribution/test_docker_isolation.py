@@ -131,7 +131,7 @@ def workspace_root():
 @pytest.fixture(scope="session")
 def docker_dir(workspace_root):
     """Get the Docker test directory."""
-    return workspace_root / "distribution_tests" / "docker"
+    return workspace_root / "test_distribution" / "docker"
 
 
 @pytest.fixture(scope="session")

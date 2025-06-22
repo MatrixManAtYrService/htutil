@@ -235,8 +235,8 @@ let
             WHEEL_CACHE_DIR = "${wheelCache}";
           };
         };
-        includePatterns = [ "src/**" "release_tests/**" "README.md" ];
-        tests = [ "${src}/release_tests" ];
+        includePatterns = [ "src/**" "test_release/**" "README.md" ];
+        tests = [ "${src}/test_release" ];
         # Set wheel path via the standard parameters - read the actual wheel filename
         wheelPath =
           let
@@ -273,10 +273,10 @@ let
             HTTY_SDIST_PATH = "${flake.packages.${system}.htty-sdist}/htty-${version}.tar.gz";
           };
         };
-        includePatterns = [ "src/**" "distribution_tests/**" "README.md" ];
+        includePatterns = [ "src/**" "test_distribution/**" "README.md" ];
         tests = [ 
-          "${src}/distribution_tests/test_installation_warnings.py"
-          "${src}/distribution_tests/test_simple_isolation.py"
+          "${src}/test_distribution/test_installation_warnings.py"
+          "${src}/test_distribution/test_simple_isolation.py"
         ];
         # Add extra dependencies needed for distribution testing
         extraDeps = [ 

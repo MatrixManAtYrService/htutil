@@ -40,7 +40,7 @@ Tests the warning system that helps users understand what to expect:
 - **Sdist Container**: Ubuntu 22.04 with Python + build tools, tests sdist installation
 - Tests installation, console scripts, imports, and warnings in truly clean environments
 
-**Runs manually**: Use `python distribution_tests/run_docker_tests.py` when Docker is available
+**Runs manually**: Use `python test_distribution/run_docker_tests.py` when Docker is available
 
 ## Running Tests
 
@@ -55,20 +55,20 @@ nix run .#checklist-dist
 nix build .#htty-wheel .#htty-sdist
 
 # Run Docker tests (requires Docker/Podman)
-python distribution_tests/run_docker_tests.py
+python test_distribution/run_docker_tests.py
 ```
 
 ### Individual Test Files
 ```bash
 # Simple isolation tests
-python -m pytest distribution_tests/test_simple_isolation.py -v
+python -m pytest test_distribution/test_simple_isolation.py -v
 
 # Installation warning tests  
-python -m pytest distribution_tests/test_installation_warnings.py -v
+python -m pytest test_distribution/test_installation_warnings.py -v
 
 # Docker tests (requires Docker and artifacts)
 CONTAINER_TOOL=docker HTTY_WHEEL_PATH=result-wheel/htty-*.whl HTTY_SDIST_PATH=result-sdist/htty-*.tar.gz \
-python -m pytest distribution_tests/test_docker_isolation.py -v
+python -m pytest test_distribution/test_docker_isolation.py -v
 ```
 
 ## What These Tests Catch

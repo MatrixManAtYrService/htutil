@@ -71,11 +71,11 @@ Once you have a wheel, you can run the release tests:
 export htty_WHEEL_PATH=$(pwd)/dist/htty-0.1.0-py3-none-any.whl
 
 # Run release tests (requires multiple Python versions: 3.10, 3.11, 3.12)
-uv run pytest release_tests/ -v -s
+uv run pytest test_release/ -v -s
 
 # Or run specific test classes
-uv run pytest release_tests/test_release.py::TestNixPython -v -s
-uv run pytest release_tests/test_release.py::TestNixPythonConsistency -v -s
+uv run pytest test_release/test_release.py::TestNixPython -v -s
+uv run pytest test_release/test_release.py::TestNixPythonConsistency -v -s
 ```
 
 The release tests verify that:

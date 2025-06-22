@@ -6,7 +6,7 @@ This script can be run manually when Docker is available to test htty
 installation in completely isolated Docker containers.
 
 Usage:
-    python distribution_tests/run_docker_tests.py
+    python test_distribution/run_docker_tests.py
 
 Prerequisites:
     - Docker or Podman installed
@@ -71,7 +71,7 @@ def run_docker_tests(container_tool, wheel_path, sdist_path):
     cmd = [
         sys.executable, "-m", "pytest", 
         "-v", "-s",
-        str(workspace / "distribution_tests" / "test_docker_isolation.py")
+        str(workspace / "test_distribution" / "test_docker_isolation.py")
     ]
     
     print(f"🧪 Running Docker tests...")
