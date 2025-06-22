@@ -135,13 +135,24 @@ def ht_binary() -> Iterator[HTBinary]:
             raise
 
     # If we get here, ht is not available anywhere
+    import platform
+    arch = platform.machine()
+    system = platform.system()
+    
     raise RuntimeError(
-        "Could not find ht binary. Please ensure one of the following:\n"
-        "1. Install htty from a wheel distribution (includes bundled ht)\n"
-        "2. Install the 'ht' tool separately and ensure it's in PATH\n"
-        "3. Set HTTY_HT_BIN environment variable to point to ht binary\n"
-        "   Example: export HTTY_HT_BIN=/path/to/ht\n"
-        "Get ht from: https://github.com/andyk/ht"
+        f"Could not find ht binary for {system} {arch}.\n\n"
+        "This likely happened because:\n"
+        "• You installed from source (no bundled ht binary)\n"
+        "• No pre-built wheel available for your architecture\n\n"
+        "Solutions:\n"
+        "1. Install ht separately: https://github.com/andyk/ht\n"
+        "   Then ensure it's in your PATH\n"
+        "2. Set HTTY_HT_BIN to point to ht binary:\n"
+        "   export HTTY_HT_BIN=/path/to/ht\n"
+        "3. Use a supported architecture with pre-built wheels:\n"
+        "   • Linux: x86_64, aarch64\n"
+        "   • macOS: x86_64, arm64\n\n"
+        "For help: https://github.com/MatrixManAtYrService/htty/issues"
     )
 
 

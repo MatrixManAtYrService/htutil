@@ -45,11 +45,13 @@ jobs:
             target: x86_64-unknown-linux-gnu
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-          - os: macos-latest
+            # Use ARM64 runner for native build
+            arch: arm64
+          - os: macos-13
             target: x86_64-apple-darwin
           - os: macos-latest
             target: aarch64-apple-darwin
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}${{ matrix.arch && format('-{0}', matrix.arch) || '' }}
     
     steps:
       - name: Checkout code
@@ -93,6 +95,16 @@ jobs:
       id-token: write  # For trusted publishing
     
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v13
+
+      - name: Build source distribution
+        run: |
+          nix develop --command python -m build --sdist --outdir ./
+
       - name: Download all wheels
         uses: actions/download-artifact@v4
         with:
