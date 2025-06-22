@@ -190,9 +190,9 @@ class TestHttyHTBin:
                 # Check that helpful error message parts are present
                 expected_parts = [
                     "Could not find ht binary",
-                    "Install htty from a wheel distribution",
-                    "Install the 'ht' tool separately",
-                    "Set HTTY_HT_BIN environment variable",
+                    "You installed from source",
+                    "Install ht separately",
+                    "Set HTTY_HT_BIN to point to ht binary",
                     "https://github.com/andyk/ht",
                 ]
                 for part in expected_parts:

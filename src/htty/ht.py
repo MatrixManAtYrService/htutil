@@ -136,9 +136,10 @@ def ht_binary() -> Iterator[HTBinary]:
 
     # If we get here, ht is not available anywhere
     import platform
+
     arch = platform.machine()
     system = platform.system()
-    
+
     raise RuntimeError(
         f"Could not find ht binary for {system} {arch}.\n\n"
         "This likely happened because:\n"
