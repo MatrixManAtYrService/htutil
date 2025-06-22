@@ -15,17 +15,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v13
+        uses: nixbuild/nix-quick-install-action@v30
 
-      - name: Cache Nix store
+      - name: Restore and save Nix store
         uses: nix-community/cache-nix-action@v6
         with:
-          # Unified cache key - Nix is content-addressed and handles cross-platform automatically
           primary-key: nix-store
-          restore-prefixes-first-match: nix-
-          paths: |
-            ~/.cache/nix
-            /nix/store
+          restore-prefixes-first-match: nix-store
+          # Collect garbage until store is at most 8GB before saving cache
+          gc-max-store-size: 8G
 
       - name: Run full checklist on main branch
         if: github.ref == 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')
@@ -56,18 +54,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v13
+        uses: nixbuild/nix-quick-install-action@v30
 
-      - name: Cache Nix store
+      - name: Restore and save Nix store
         uses: nix-community/cache-nix-action@v6
         with:
-          # Unified cache key - Nix is content-addressed and handles cross-platform automatically
-          # All platforms can share the same cache since Nix isolates by content hash
           primary-key: nix-store
-          restore-prefixes-first-match: nix-
-          paths: |
-            ~/.cache/nix
-            /nix/store
+          restore-prefixes-first-match: nix-store
+          # Collect garbage until store is at most 8GB before saving cache
+          gc-max-store-size: 8G
 
       - name: Build wheel with Nix
         run: nix build .#htty-wheel
@@ -97,7 +92,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v13
+        uses: nixbuild/nix-quick-install-action@v30
 
       - name: Create packages directory
         run: mkdir -p packages/
