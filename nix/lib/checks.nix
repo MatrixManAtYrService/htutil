@@ -264,7 +264,7 @@ let
           extraEnvVars = testConfig.extraEnvVars or { } // {
             WHEEL_CACHE_DIR = "${wheelCache}";
             # Provide paths to pre-built artifacts for simple isolation tests
-            HTTY_WHEEL_PATH = 
+            HTTY_WHEEL_PATH =
               let
                 wheelFilename = builtins.readFile "${httyWheel}/wheel-filename.txt";
                 cleanFilename = builtins.replaceStrings [ "\n" ] [ "" ] wheelFilename;
@@ -274,13 +274,13 @@ let
           };
         };
         includePatterns = [ "src/**" "test_distribution/**" "README.md" ];
-        tests = [ 
+        tests = [
           "${src}/test_distribution/test_installation_warnings.py"
           "${src}/test_distribution/test_simple_isolation.py"
         ];
         # Add extra dependencies needed for distribution testing
-        extraDeps = [ 
-          wheelCache 
+        extraDeps = [
+          wheelCache
           flake.packages.${system}.htty-wheel
           flake.packages.${system}.htty-sdist
           pkgs.python3.pkgs.build

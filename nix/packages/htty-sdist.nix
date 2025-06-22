@@ -29,4 +29,4 @@ pkgs.runCommand "htty-sdist"
   # Show what was built
   echo "Built source distribution:"
   ls -la $out/
-'' 
+''
