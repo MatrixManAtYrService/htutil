@@ -43,10 +43,8 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-          - os: ubuntu-latest
+          - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
-            # Use ARM64 runner for native build
-            arch: arm64
           - os: macos-13
             target: x86_64-apple-darwin
           - os: macos-latest
