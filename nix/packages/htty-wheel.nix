@@ -6,9 +6,10 @@ let
   htPackage = inputs.ht.packages.${system}.ht;
 
   # Platform-specific wheel tags based on the target system
+  # Use manylinux tags for Linux compatibility with PyPI
   platformTag = {
-    "x86_64-linux" = "linux_x86_64";
-    "aarch64-linux" = "linux_aarch64";
+    "x86_64-linux" = "manylinux_2_17_x86_64";
+    "aarch64-linux" = "manylinux_2_17_aarch64";
     "x86_64-darwin" = "macosx_10_9_x86_64";
     "aarch64-darwin" = "macosx_11_0_arm64";
   }.${system} or "any";
