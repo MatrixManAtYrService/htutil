@@ -63,12 +63,13 @@ def _check_installation_type_and_warn() -> None:
             "which bundles the correct ht version. "
             "See: https://github.com/MatrixManAtYrService/htty#installation",
             UserWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return
 
     # No bundled binary and no system ht - this will likely fail
     import platform
+
     arch = platform.machine()
     system = platform.system()
 
@@ -86,7 +87,7 @@ def _check_installation_type_and_warn() -> None:
         "• Linux: x86_64, aarch64  • macOS: x86_64, arm64\n\n"
         "For help: https://github.com/MatrixManAtYrService/htty/issues",
         UserWarning,
-        stacklevel=2
+        stacklevel=2,
     )
 
 

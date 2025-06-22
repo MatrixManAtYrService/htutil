@@ -12,12 +12,12 @@ These tests use Python virtual environments to simulate clean installation scena
   - Successful installation
   - Console scripts (`htty`, `htty-ht`) are available
   - Import works without warnings (bundled binary)
-  
+
 - **Sdist Installation**: Tests installing from source distribution and verifying:
   - Successful installation (with build dependencies)
   - Console scripts are available
   - Import works with appropriate warnings (no bundled binary)
-  
+
 - **Consistency**: Verifies that wheel and sdist install the same console scripts
 
 **Runs in**: Nix environment (part of `nix run .#checklist-dist`)
@@ -63,7 +63,7 @@ python test_distribution/run_docker_tests.py
 # Simple isolation tests
 python -m pytest test_distribution/test_simple_isolation.py -v
 
-# Installation warning tests  
+# Installation warning tests
 python -m pytest test_distribution/test_installation_warnings.py -v
 
 # Docker tests (requires Docker and artifacts)
@@ -90,4 +90,4 @@ These tests follow the principle: **"Test what users actually experience"**
 - **Multiple installation methods** (wheel vs sdist) to cover different user scenarios
 - **Helpful error messages** when things go wrong, just like users would see
 
-The goal is to catch distribution issues **before** they reach users, ensuring that `pip install htty` works reliably across different platforms and Python environments. 
+The goal is to catch distribution issues **before** they reach users, ensuring that `pip install htty` works reliably across different platforms and Python environments.

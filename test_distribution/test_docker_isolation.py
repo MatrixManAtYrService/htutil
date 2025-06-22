@@ -2,7 +2,7 @@
 """
 Docker-based distribution tests for htty.
 
-This test suite validates htty installation in completely isolated Docker 
+This test suite validates htty installation in completely isolated Docker
 containers that simulate real user environments without any Nix dependencies.
 
 Tests:
@@ -36,15 +36,18 @@ class HttyTestContainer:
 
         # Extract image type from dockerfile name (e.g., Dockerfile.wheel -> wheel)
         dockerfile_name = self.dockerfile_path.name  # e.g., "Dockerfile.wheel"
-        image_type = dockerfile_name.split('.', 1)[1] if '.' in dockerfile_name else dockerfile_name
+        image_type = dockerfile_name.split(".", 1)[1] if "." in dockerfile_name else dockerfile_name
         image_tag = f"htty-test-{image_type}"
 
         # Build the image using docker/podman build
         build_cmd = [
-            self.container_tool, "build",
-            "-f", str(self.dockerfile_path),
-            "-t", image_tag,
-            str(self.dockerfile_path.parent)  # Build context is the docker directory
+            self.container_tool,
+            "build",
+            "-f",
+            str(self.dockerfile_path),
+            "-t",
+            image_tag,
+            str(self.dockerfile_path.parent),  # Build context is the docker directory
         ]
 
         print(f"🐳 Building Docker image: {image_tag}")
@@ -58,19 +61,29 @@ class HttyTestContainer:
             # Mount wheel directory
             wheel_dir = self.workspace_root / "result-wheel"
             run_cmd = [
-                self.container_tool, "run", "-d",  # detached mode
-                "-v", f"{wheel_dir}:/wheels:ro",  # Mount wheel directory as read-only
+                self.container_tool,
+                "run",
+                "-d",  # detached mode
+                "-v",
+                f"{wheel_dir}:/wheels:ro",  # Mount wheel directory as read-only
                 image_tag,
-                "tail", "-f", "/dev/null"  # Keep container running
+                "tail",
+                "-f",
+                "/dev/null",  # Keep container running
             ]
         else:  # sdist
             # Mount sdist directory
             sdist_dir = self.workspace_root / "result-sdist"
             run_cmd = [
-                self.container_tool, "run", "-d",  # detached mode
-                "-v", f"{sdist_dir}:/sdist:ro",  # Mount sdist directory as read-only
+                self.container_tool,
+                "run",
+                "-d",  # detached mode
+                "-v",
+                f"{sdist_dir}:/sdist:ro",  # Mount sdist directory as read-only
                 image_tag,
-                "tail", "-f", "/dev/null"  # Keep container running
+                "tail",
+                "-f",
+                "/dev/null",  # Keep container running
             ]
 
         print("🚀 Starting container...")
@@ -95,11 +108,7 @@ class HttyTestContainer:
         # Join commands with &&
         full_command = " && ".join(commands)
 
-        exec_cmd = [
-            self.container_tool, "exec",
-            self.container_id,
-            "bash", "-c", full_command
-        ]
+        exec_cmd = [self.container_tool, "exec", self.container_id, "bash", "-c", full_command]
 
         result = subprocess.run(exec_cmd, capture_output=True, text=True)
         return result.returncode, result.stdout + result.stderr
@@ -109,11 +118,13 @@ class HttyTestContainer:
         if self.container_id:
             try:
                 # Stop the container
-                subprocess.run([self.container_tool, "stop", self.container_id],
-                             capture_output=True, text=True, timeout=10)
+                subprocess.run(
+                    [self.container_tool, "stop", self.container_id], capture_output=True, text=True, timeout=10
+                )
                 # Remove the container
-                subprocess.run([self.container_tool, "rm", self.container_id],
-                             capture_output=True, text=True, timeout=10)
+                subprocess.run(
+                    [self.container_tool, "rm", self.container_id], capture_output=True, text=True, timeout=10
+                )
             except Exception:
                 pass  # Ignore errors during cleanup
             self.container_id = None
@@ -146,10 +157,7 @@ def container_tool():
             pass
 
     # Common paths where docker/podman might be installed
-    common_paths = [
-        "/usr/bin", "/usr/local/bin", "/opt/homebrew/bin",
-        "/usr/sbin", "/usr/local/sbin", "/bin", "/sbin"
-    ]
+    common_paths = ["/usr/bin", "/usr/local/bin", "/opt/homebrew/bin", "/usr/sbin", "/usr/local/sbin", "/bin", "/sbin"]
 
     for tool in ["docker", "podman"]:
         # First try from PATH (might work if not in nix shell)
@@ -173,8 +181,10 @@ def container_tool():
                 except Exception:
                     continue
 
-    pytest.fail("Neither docker nor podman found. Please install a container runtime or ensure it's in your PATH.\n"
-                "You can also set CONTAINER_TOOL environment variable to specify the path.")
+    pytest.fail(
+        "Neither docker nor podman found. Please install a container runtime or ensure it's in your PATH.\n"
+        "You can also set CONTAINER_TOOL environment variable to specify the path."
+    )
 
 
 @pytest.fixture(scope="session")
@@ -216,7 +226,7 @@ def build_artifacts(workspace_root):
                 ["nix", "build", ".#htty-wheel", "--out-link", "result-wheel"],
                 cwd=workspace_root,
                 capture_output=True,
-                text=True
+                text=True,
             )
             if result.returncode != 0:
                 pytest.skip(f"Cannot build wheel and no HTTY_WHEEL_PATH provided: {result.stderr}")
@@ -239,7 +249,7 @@ def build_artifacts(workspace_root):
                 ["nix", "build", ".#htty-sdist", "--out-link", "result-sdist"],
                 cwd=workspace_root,
                 capture_output=True,
-                text=True
+                text=True,
             )
             if result.returncode != 0:
                 pytest.skip(f"Cannot build sdist and no HTTY_SDIST_PATH provided: {result.stderr}")
@@ -256,7 +266,7 @@ class TestWheelInstallation:
         """Test that wheel installs without issues."""
         commands = [
             "ls -la /wheels/",  # Debug: see what's available
-            "python3 -m pip install --user /wheels/*.whl"
+            "python3 -m pip install --user /wheels/*.whl",
         ]
 
         exit_code, output = wheel_container.run_command(commands)
@@ -272,7 +282,7 @@ class TestWheelInstallation:
             "which htty",
             "which htty-ht",
             "htty --help",
-            "htty-ht --help"
+            "htty-ht --help",
         ]
 
         exit_code, output = wheel_container.run_command(commands)
@@ -286,7 +296,7 @@ class TestWheelInstallation:
         """Test that wheel import doesn't show warnings (bundled binary)."""
         commands = [
             "python3 -m pip install --user /wheels/*.whl",
-            "python3 -c 'import warnings; warnings.simplefilter(\"always\"); import htty; print(\"Import successful\")'"
+            'python3 -c \'import warnings; warnings.simplefilter("always"); import htty; print("Import successful")\'',
         ]
 
         exit_code, output = wheel_container.run_command(commands)
@@ -302,7 +312,7 @@ class TestWheelInstallation:
         commands = [
             "python3 -m pip install --user /wheels/*.whl",
             "echo 'test' | htty --help > /dev/null && echo 'htty works'",
-            "htty-ht --help > /dev/null && echo 'htty-ht works'"
+            "htty-ht --help > /dev/null && echo 'htty-ht works'",
         ]
 
         exit_code, output = wheel_container.run_command(commands)
@@ -319,7 +329,7 @@ class TestSdistInstallation:
         """Test that sdist installs without issues."""
         commands = [
             "ls -la /sdist/",  # Debug: see what's available
-            "python3 -m pip install --user /sdist/*.tar.gz"
+            "python3 -m pip install --user /sdist/*.tar.gz",
         ]
 
         exit_code, output = sdist_container.run_command(commands)
@@ -346,10 +356,11 @@ class TestSdistInstallation:
 
     def test_sdist_import_shows_warnings(self, sdist_container):
         """Test that sdist import shows appropriate warnings (no bundled binary)."""
-        commands = [
-            "python3 -m pip install --user /sdist/*.tar.gz",
-            "python3 -c 'import warnings; warnings.simplefilter(\"always\"); import htty; print(\"Import successful\")' 2>&1"
-        ]
+        import_cmd = (
+            'python3 -c \'import warnings; warnings.simplefilter("always"); '
+            'import htty; print("Import successful")\' 2>&1'
+        )
+        commands = ["python3 -m pip install --user /sdist/*.tar.gz", import_cmd]
 
         exit_code, output = sdist_container.run_command(commands)
         print(f"Import test output: {output}")
@@ -357,15 +368,15 @@ class TestSdistInstallation:
         assert exit_code == 0, f"Import test failed: {output}"
         assert "Import successful" in output, "Import should have succeeded"
         # For sdist installation without ht, we expect warnings
-        assert ("No 'ht' binary found" in output or
-                "warning" in output.lower() or
-                "Warning" in output), "Sdist should warn about missing ht binary"
+        assert "No 'ht' binary found" in output or "warning" in output.lower() or "Warning" in output, (
+            "Sdist should warn about missing ht binary"
+        )
 
     def test_sdist_helpful_error_messages(self, sdist_container):
         """Test that sdist provides helpful error messages when ht is missing."""
         commands = [
             "python3 -m pip install --user /sdist/*.tar.gz",
-            "python3 -c 'import htty; htty.run([\"echo\", \"test\"])' 2>&1 || echo 'Expected error occurred'"
+            "python3 -c 'import htty; htty.run([\"echo\", \"test\"])' 2>&1 || echo 'Expected error occurred'",
         ]
 
         exit_code, output = sdist_container.run_command(commands)
@@ -374,9 +385,9 @@ class TestSdistInstallation:
         # We expect this to fail, but with a helpful error message
         assert "Expected error occurred" in output or exit_code != 0, "Should fail when ht is missing"
         # Should provide helpful guidance
-        assert ("install" in output.lower() or
-                "download" in output.lower() or
-                "binary" in output.lower()), "Should provide helpful guidance about installing ht"
+        assert "install" in output.lower() or "download" in output.lower() or "binary" in output.lower(), (
+            "Should provide helpful guidance about installing ht"
+        )
 
 
 class TestCrossPlatformConsistency:
@@ -385,23 +396,21 @@ class TestCrossPlatformConsistency:
     def test_console_scripts_consistent(self, wheel_container, sdist_container):
         """Test that both wheel and sdist install the same console scripts."""
         # Test wheel
-        wheel_exit_code, wheel_output = wheel_container.run_command([
-            "python3 -m pip install --user /wheels/*.whl",
-            "ls ~/.local/bin/ | grep htty | sort"
-        ])
+        wheel_exit_code, wheel_output = wheel_container.run_command(
+            ["python3 -m pip install --user /wheels/*.whl", "ls ~/.local/bin/ | grep htty | sort"]
+        )
 
         # Test sdist
-        sdist_exit_code, sdist_output = sdist_container.run_command([
-            "python3 -m pip install --user /sdist/*.tar.gz",
-            "ls ~/.local/bin/ | grep htty | sort"
-        ])
+        sdist_exit_code, sdist_output = sdist_container.run_command(
+            ["python3 -m pip install --user /sdist/*.tar.gz", "ls ~/.local/bin/ | grep htty | sort"]
+        )
 
         assert wheel_exit_code == 0, f"Wheel console script check failed: {wheel_output}"
         assert sdist_exit_code == 0, f"Sdist console script check failed: {sdist_output}"
 
         # Extract the script lists
-        wheel_scripts = [line.strip() for line in wheel_output.split('\n') if line.strip() and 'htty' in line]
-        sdist_scripts = [line.strip() for line in sdist_output.split('\n') if line.strip() and 'htty' in line]
+        wheel_scripts = [line.strip() for line in wheel_output.split("\n") if line.strip() and "htty" in line]
+        sdist_scripts = [line.strip() for line in sdist_output.split("\n") if line.strip() and "htty" in line]
 
         print(f"Wheel scripts: {wheel_scripts}")
         print(f"Sdist scripts: {sdist_scripts}")
@@ -443,16 +452,14 @@ CMD ["python3", "-c", "print('Isolation test passed')"]
         # Build and run isolation test
         image_tag = "htty-isolation-test"
 
-        build_result = subprocess.run([
-            container_tool, "build", "-t", image_tag, temp_dir
-        ], capture_output=True, text=True)
+        build_result = subprocess.run(
+            [container_tool, "build", "-t", image_tag, temp_dir], capture_output=True, text=True
+        )
 
         if build_result.returncode != 0:
             pytest.fail(f"Failed to build isolation test: {build_result.stderr}")
 
-        run_result = subprocess.run([
-            container_tool, "run", "--rm", image_tag
-        ], capture_output=True, text=True)
+        run_result = subprocess.run([container_tool, "run", "--rm", image_tag], capture_output=True, text=True)
 
         print(f"Isolation test output: {run_result.stdout}")
 

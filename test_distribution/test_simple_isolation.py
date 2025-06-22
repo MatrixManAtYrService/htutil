@@ -54,9 +54,7 @@ class TestWheelVenvInstallation:
             venv_path = Path(temp_dir) / "test_venv"
 
             # Create virtual environment
-            result = subprocess.run([
-                sys.executable, "-m", "venv", str(venv_path)
-            ], capture_output=True, text=True)
+            result = subprocess.run([sys.executable, "-m", "venv", str(venv_path)], capture_output=True, text=True)
 
             assert result.returncode == 0, f"Failed to create venv: {result.stderr}"
 
@@ -67,18 +65,18 @@ class TestWheelVenvInstallation:
                 python_exe = venv_path / "bin" / "python"
 
             # Install wheel
-            result = subprocess.run([
-                str(python_exe), "-m", "pip", "install", str(wheel_path)
-            ], capture_output=True, text=True)
+            result = subprocess.run(
+                [str(python_exe), "-m", "pip", "install", str(wheel_path)], capture_output=True, text=True
+            )
 
             print(f"Installation output: {result.stdout}")
             if result.stderr:
                 print(f"Installation stderr: {result.stderr}")
 
             assert result.returncode == 0, f"Wheel installation failed: {result.stderr}"
-            assert (
-                "Successfully installed" in result.stdout and "htty" in result.stdout
-            ), "Expected successful installation message"
+            assert "Successfully installed" in result.stdout and "htty" in result.stdout, (
+                "Expected successful installation message"
+            )
 
     def test_wheel_console_scripts(self, wheel_path):
         """Test that console scripts work after wheel installation."""
@@ -96,9 +94,7 @@ class TestWheelVenvInstallation:
                 bin_dir = venv_path / "bin"
 
             # Install wheel
-            subprocess.run([
-                str(python_exe), "-m", "pip", "install", str(wheel_path)
-            ], check=True)
+            subprocess.run([str(python_exe), "-m", "pip", "install", str(wheel_path)], check=True)
 
             # Check console scripts exist
             htty_script = bin_dir / ("htty.exe" if sys.platform == "win32" else "htty")
@@ -108,9 +104,7 @@ class TestWheelVenvInstallation:
             assert htty_ht_script.exists(), f"htty-ht console script not found at {htty_ht_script}"
 
             # Test that scripts can show help
-            result = subprocess.run([
-                str(htty_script), "--help"
-            ], capture_output=True, text=True)
+            result = subprocess.run([str(htty_script), "--help"], capture_output=True, text=True)
 
             # Should either succeed or fail gracefully
             print(f"htty --help output: {result.stdout}")
@@ -127,15 +121,18 @@ class TestWheelVenvInstallation:
             python_exe = venv_path / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
 
             # Install wheel
-            subprocess.run([
-                str(python_exe), "-m", "pip", "install", str(wheel_path)
-            ], check=True)
+            subprocess.run([str(python_exe), "-m", "pip", "install", str(wheel_path)], check=True)
 
             # Test import
-            result = subprocess.run([
-                str(python_exe), "-c",
-                "import warnings; warnings.simplefilter('always'); import htty; print('Import successful')"
-            ], capture_output=True, text=True)
+            result = subprocess.run(
+                [
+                    str(python_exe),
+                    "-c",
+                    "import warnings; warnings.simplefilter('always'); import htty; print('Import successful')",
+                ],
+                capture_output=True,
+                text=True,
+            )
 
             print(f"Import output: {result.stdout}")
             if result.stderr:
@@ -154,9 +151,7 @@ class TestSdistVenvInstallation:
             venv_path = Path(temp_dir) / "test_venv"
 
             # Create virtual environment
-            result = subprocess.run([
-                sys.executable, "-m", "venv", str(venv_path)
-            ], capture_output=True, text=True)
+            result = subprocess.run([sys.executable, "-m", "venv", str(venv_path)], capture_output=True, text=True)
 
             assert result.returncode == 0, f"Failed to create venv: {result.stderr}"
 
@@ -167,18 +162,18 @@ class TestSdistVenvInstallation:
                 python_exe = venv_path / "bin" / "python"
 
             # Install sdist
-            result = subprocess.run([
-                str(python_exe), "-m", "pip", "install", str(sdist_path)
-            ], capture_output=True, text=True)
+            result = subprocess.run(
+                [str(python_exe), "-m", "pip", "install", str(sdist_path)], capture_output=True, text=True
+            )
 
             print(f"Installation output: {result.stdout}")
             if result.stderr:
                 print(f"Installation stderr: {result.stderr}")
 
             assert result.returncode == 0, f"Sdist installation failed: {result.stderr}"
-            assert (
-                "Successfully installed" in result.stdout and "htty" in result.stdout
-            ), "Expected successful installation message"
+            assert "Successfully installed" in result.stdout and "htty" in result.stdout, (
+                "Expected successful installation message"
+            )
 
     def test_sdist_console_scripts(self, sdist_path):
         """Test that console scripts work after sdist installation."""
@@ -196,9 +191,7 @@ class TestSdistVenvInstallation:
                 bin_dir = venv_path / "bin"
 
             # Install sdist
-            subprocess.run([
-                str(python_exe), "-m", "pip", "install", str(sdist_path)
-            ], check=True)
+            subprocess.run([str(python_exe), "-m", "pip", "install", str(sdist_path)], check=True)
 
             # Check console scripts exist
             htty_script = bin_dir / ("htty.exe" if sys.platform == "win32" else "htty")
@@ -218,15 +211,19 @@ class TestSdistVenvInstallation:
             python_exe = venv_path / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
 
             # Install sdist
-            subprocess.run([
-                str(python_exe), "-m", "pip", "install", str(sdist_path)
-            ], check=True)
+            subprocess.run([str(python_exe), "-m", "pip", "install", str(sdist_path)], check=True)
 
             # Test import with warning capture
-            result = subprocess.run([
-                str(python_exe), "-c",
-                "import warnings; warnings.simplefilter('always'); import htty; print('Import successful')"
-            ], capture_output=True, text=True, env={**os.environ, "PATH": "/usr/bin:/bin"})
+            result = subprocess.run(
+                [
+                    str(python_exe),
+                    "-c",
+                    "import warnings; warnings.simplefilter('always'); import htty; print('Import successful')",
+                ],
+                capture_output=True,
+                text=True,
+                env={**os.environ, "PATH": "/usr/bin:/bin"},
+            )
 
             print(f"Import output: {result.stdout}")
             print(f"Import stderr: {result.stderr}")
@@ -236,12 +233,14 @@ class TestSdistVenvInstallation:
 
             # Check for warnings about missing ht (unless system has it)
             import shutil
+
             if not shutil.which("ht"):
                 full_output = result.stdout + result.stderr
-                assert ("warning" in full_output.lower() or
-                        "Warning" in full_output or
-                        "No 'ht' binary found" in full_output), \
-                    "Should show warning about missing ht binary"
+                assert (
+                    "warning" in full_output.lower()
+                    or "Warning" in full_output
+                    or "No 'ht' binary found" in full_output
+                ), "Should show warning about missing ht binary"
 
 
 class TestConsistency:

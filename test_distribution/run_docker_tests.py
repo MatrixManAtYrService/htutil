@@ -69,9 +69,12 @@ def run_docker_tests(container_tool, wheel_path, sdist_path):
 
     # Run the Docker tests using pytest
     cmd = [
-        sys.executable, "-m", "pytest",
-        "-v", "-s",
-        str(workspace / "test_distribution" / "test_docker_isolation.py")
+        sys.executable,
+        "-m",
+        "pytest",
+        "-v",
+        "-s",
+        str(workspace / "test_distribution" / "test_docker_isolation.py"),
     ]
 
     print("🧪 Running Docker tests...")
