@@ -1093,35 +1093,36 @@ htty    </h1>
 </span><span id="L-63"><a href="#L-63"><span class="linenos">63</span></a>            <span class="s2">&quot;which bundles the correct ht version. &quot;</span>
 </span><span id="L-64"><a href="#L-64"><span class="linenos">64</span></a>            <span class="s2">&quot;See: https://github.com/MatrixManAtYrService/htty#installation&quot;</span><span class="p">,</span>
 </span><span id="L-65"><a href="#L-65"><span class="linenos">65</span></a>            <span class="ne">UserWarning</span><span class="p">,</span>
-</span><span id="L-66"><a href="#L-66"><span class="linenos">66</span></a>            <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span>
+</span><span id="L-66"><a href="#L-66"><span class="linenos">66</span></a>            <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
 </span><span id="L-67"><a href="#L-67"><span class="linenos">67</span></a>        <span class="p">)</span>
 </span><span id="L-68"><a href="#L-68"><span class="linenos">68</span></a>        <span class="k">return</span>
 </span><span id="L-69"><a href="#L-69"><span class="linenos">69</span></a>
 </span><span id="L-70"><a href="#L-70"><span class="linenos">70</span></a>    <span class="c1"># No bundled binary and no system ht - this will likely fail</span>
 </span><span id="L-71"><a href="#L-71"><span class="linenos">71</span></a>    <span class="kn">import</span><span class="w"> </span><span class="nn">platform</span>
-</span><span id="L-72"><a href="#L-72"><span class="linenos">72</span></a>    <span class="n">arch</span> <span class="o">=</span> <span class="n">platform</span><span class="o">.</span><span class="n">machine</span><span class="p">()</span>
-</span><span id="L-73"><a href="#L-73"><span class="linenos">73</span></a>    <span class="n">system</span> <span class="o">=</span> <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
-</span><span id="L-74"><a href="#L-74"><span class="linenos">74</span></a>
-</span><span id="L-75"><a href="#L-75"><span class="linenos">75</span></a>    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-</span><span id="L-76"><a href="#L-76"><span class="linenos">76</span></a>        <span class="sa">f</span><span class="s2">&quot;htty installation warning: No &#39;ht&#39; binary found for </span><span class="si">{</span><span class="n">system</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">arch</span><span class="si">}</span><span class="s2">.</span><span class="se">\n\n</span><span class="s2">&quot;</span>
-</span><span id="L-77"><a href="#L-77"><span class="linenos">77</span></a>        <span class="s2">&quot;You installed htty from source, but htty requires the &#39;ht&#39; binary to function.</span><span class="se">\n</span><span class="s2">&quot;</span>
-</span><span id="L-78"><a href="#L-78"><span class="linenos">78</span></a>        <span class="s2">&quot;This installation will not work until you:</span><span class="se">\n\n</span><span class="s2">&quot;</span>
-</span><span id="L-79"><a href="#L-79"><span class="linenos">79</span></a>        <span class="s2">&quot;1. Install ht separately: https://github.com/andyk/ht</span><span class="se">\n</span><span class="s2">&quot;</span>
-</span><span id="L-80"><a href="#L-80"><span class="linenos">80</span></a>        <span class="s2">&quot;   Then ensure it&#39;s in your PATH</span><span class="se">\n</span><span class="s2">&quot;</span>
-</span><span id="L-81"><a href="#L-81"><span class="linenos">81</span></a>        <span class="s2">&quot;2. Set HTTY_HT_BIN environment variable:</span><span class="se">\n</span><span class="s2">&quot;</span>
-</span><span id="L-82"><a href="#L-82"><span class="linenos">82</span></a>        <span class="s2">&quot;   export HTTY_HT_BIN=/path/to/ht</span><span class="se">\n</span><span class="s2">&quot;</span>
-</span><span id="L-83"><a href="#L-83"><span class="linenos">83</span></a>        <span class="s2">&quot;3. Or install a wheel distribution with bundled ht:</span><span class="se">\n</span><span class="s2">&quot;</span>
-</span><span id="L-84"><a href="#L-84"><span class="linenos">84</span></a>        <span class="s2">&quot;   pip install --force-reinstall --no-deps htty</span><span class="se">\n\n</span><span class="s2">&quot;</span>
-</span><span id="L-85"><a href="#L-85"><span class="linenos">85</span></a>        <span class="s2">&quot;Supported platforms with pre-built wheels:</span><span class="se">\n</span><span class="s2">&quot;</span>
-</span><span id="L-86"><a href="#L-86"><span class="linenos">86</span></a>        <span class="s2">&quot;• Linux: x86_64, aarch64  • macOS: x86_64, arm64</span><span class="se">\n\n</span><span class="s2">&quot;</span>
-</span><span id="L-87"><a href="#L-87"><span class="linenos">87</span></a>        <span class="s2">&quot;For help: https://github.com/MatrixManAtYrService/htty/issues&quot;</span><span class="p">,</span>
-</span><span id="L-88"><a href="#L-88"><span class="linenos">88</span></a>        <span class="ne">UserWarning</span><span class="p">,</span>
-</span><span id="L-89"><a href="#L-89"><span class="linenos">89</span></a>        <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span>
-</span><span id="L-90"><a href="#L-90"><span class="linenos">90</span></a>    <span class="p">)</span>
-</span><span id="L-91"><a href="#L-91"><span class="linenos">91</span></a>
+</span><span id="L-72"><a href="#L-72"><span class="linenos">72</span></a>
+</span><span id="L-73"><a href="#L-73"><span class="linenos">73</span></a>    <span class="n">arch</span> <span class="o">=</span> <span class="n">platform</span><span class="o">.</span><span class="n">machine</span><span class="p">()</span>
+</span><span id="L-74"><a href="#L-74"><span class="linenos">74</span></a>    <span class="n">system</span> <span class="o">=</span> <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+</span><span id="L-75"><a href="#L-75"><span class="linenos">75</span></a>
+</span><span id="L-76"><a href="#L-76"><span class="linenos">76</span></a>    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+</span><span id="L-77"><a href="#L-77"><span class="linenos">77</span></a>        <span class="sa">f</span><span class="s2">&quot;htty installation warning: No &#39;ht&#39; binary found for </span><span class="si">{</span><span class="n">system</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">arch</span><span class="si">}</span><span class="s2">.</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+</span><span id="L-78"><a href="#L-78"><span class="linenos">78</span></a>        <span class="s2">&quot;You installed htty from source, but htty requires the &#39;ht&#39; binary to function.</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="L-79"><a href="#L-79"><span class="linenos">79</span></a>        <span class="s2">&quot;This installation will not work until you:</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+</span><span id="L-80"><a href="#L-80"><span class="linenos">80</span></a>        <span class="s2">&quot;1. Install ht separately: https://github.com/andyk/ht</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="L-81"><a href="#L-81"><span class="linenos">81</span></a>        <span class="s2">&quot;   Then ensure it&#39;s in your PATH</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="L-82"><a href="#L-82"><span class="linenos">82</span></a>        <span class="s2">&quot;2. Set HTTY_HT_BIN environment variable:</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="L-83"><a href="#L-83"><span class="linenos">83</span></a>        <span class="s2">&quot;   export HTTY_HT_BIN=/path/to/ht</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="L-84"><a href="#L-84"><span class="linenos">84</span></a>        <span class="s2">&quot;3. Or install a wheel distribution with bundled ht:</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="L-85"><a href="#L-85"><span class="linenos">85</span></a>        <span class="s2">&quot;   pip install --force-reinstall --no-deps htty</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+</span><span id="L-86"><a href="#L-86"><span class="linenos">86</span></a>        <span class="s2">&quot;Supported platforms with pre-built wheels:</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="L-87"><a href="#L-87"><span class="linenos">87</span></a>        <span class="s2">&quot;• Linux: x86_64, aarch64  • macOS: x86_64, arm64</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+</span><span id="L-88"><a href="#L-88"><span class="linenos">88</span></a>        <span class="s2">&quot;For help: https://github.com/MatrixManAtYrService/htty/issues&quot;</span><span class="p">,</span>
+</span><span id="L-89"><a href="#L-89"><span class="linenos">89</span></a>        <span class="ne">UserWarning</span><span class="p">,</span>
+</span><span id="L-90"><a href="#L-90"><span class="linenos">90</span></a>        <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</span><span id="L-91"><a href="#L-91"><span class="linenos">91</span></a>    <span class="p">)</span>
 </span><span id="L-92"><a href="#L-92"><span class="linenos">92</span></a>
-</span><span id="L-93"><a href="#L-93"><span class="linenos">93</span></a><span class="c1"># Show installation warning on import (only for problematic installations)</span>
-</span><span id="L-94"><a href="#L-94"><span class="linenos">94</span></a><span class="n">_check_installation_type_and_warn</span><span class="p">()</span>
+</span><span id="L-93"><a href="#L-93"><span class="linenos">93</span></a>
+</span><span id="L-94"><a href="#L-94"><span class="linenos">94</span></a><span class="c1"># Show installation warning on import (only for problematic installations)</span>
+</span><span id="L-95"><a href="#L-95"><span class="linenos">95</span></a><span class="n">_check_installation_type_and_warn</span><span class="p">()</span>
 </span></pre></div>
 
 
