@@ -101,7 +101,8 @@ jobs:
 
       - name: Build source distribution
         run: |
-          nix develop --command python -m build --sdist --outdir ./
+          nix build .#htty-sdist
+          cp result/*.tar.gz ./
 
       - name: Download all wheels
         uses: actions/download-artifact@v4

@@ -74,6 +74,9 @@ class PythonEnvironment:
 
             print(f"✅ Virtualenv created at: {self.venv_dir}")
 
+            # Verify console scripts are NOT available before installation
+            self._verify_console_scripts_not_present()
+
             # Look for pre-downloaded wheels in the Nix environment
             wheels_dir = None
 
@@ -111,11 +114,64 @@ class PythonEnvironment:
             if install_result.stdout:
                 print(f"📦 Installation output: {install_result.stdout}")
 
+            # Verify console scripts ARE available after installation
+            self._verify_console_scripts_present()
+
         except FileNotFoundError:
             raise RuntimeError(f"Python {self.python_version} not found in PATH")
 
         print(f"✅ Wheel test environment ready for Python {self.python_version}")
         self.setup_complete = True
+
+    def _verify_console_scripts_not_present(self):
+        """Verify that htty and htty-ht console scripts are NOT available in the virtualenv before installation."""
+        print("🔍 Verifying console scripts are not present in virtualenv before installation...")
+
+        # Check directly in the virtualenv bin directory, not the system PATH
+        if os.name == "nt":  # Windows
+            venv_bin_dir = self.venv_dir / "Scripts"
+            htty_path = venv_bin_dir / "htty.exe"
+            htty_ht_path = venv_bin_dir / "htty-ht.exe"
+        else:  # Unix-like
+            venv_bin_dir = self.venv_dir / "bin"
+            htty_path = venv_bin_dir / "htty"
+            htty_ht_path = venv_bin_dir / "htty-ht"
+
+        # Check that htty is not in the virtualenv
+        if htty_path.exists():
+            raise RuntimeError(f"htty script unexpectedly found in virtualenv before installation: {htty_path}")
+
+        # Check that htty-ht is not in the virtualenv
+        if htty_ht_path.exists():
+            raise RuntimeError(f"htty-ht script unexpectedly found in virtualenv before installation: {htty_ht_path}")
+
+        print("✅ Console scripts correctly not present in virtualenv before installation")
+
+    def _verify_console_scripts_present(self):
+        """Verify that htty and htty-ht console scripts ARE available in the virtualenv after installation."""
+        print("🔍 Verifying console scripts are present in virtualenv after installation...")
+
+        # Check directly in the virtualenv bin directory
+        if os.name == "nt":  # Windows
+            venv_bin_dir = self.venv_dir / "Scripts"
+            htty_path = venv_bin_dir / "htty.exe"
+            htty_ht_path = venv_bin_dir / "htty-ht.exe"
+        else:  # Unix-like
+            venv_bin_dir = self.venv_dir / "bin"
+            htty_path = venv_bin_dir / "htty"
+            htty_ht_path = venv_bin_dir / "htty-ht"
+
+        # Check that htty is in the virtualenv
+        if not htty_path.exists():
+            raise RuntimeError(f"htty script not found in virtualenv after installation: {htty_path}")
+        print(f"✅ htty found at: {htty_path}")
+
+        # Check that htty-ht is in the virtualenv
+        if not htty_ht_path.exists():
+            raise RuntimeError(f"htty-ht script not found in virtualenv after installation: {htty_ht_path}")
+        print(f"✅ htty-ht found at: {htty_ht_path}")
+
+        print("✅ Console scripts correctly present in virtualenv after installation")
 
     def run_command(self, command: str) -> Tuple[int, str]:
         """Run a command in the virtualenv where htty wheel is installed."""
@@ -341,6 +397,40 @@ print('Command execution successful')
         exit_code, output = python_env.run_command(command)
         assert exit_code == 0, f"Command execution failed: {output}"
         assert "Command execution successful" in output
+
+    def test_console_script_htty_help(self, python_version, python_env):
+        """Test that htty console script works and shows help."""
+        exit_code, output = python_env.run_command("htty --help")
+        assert exit_code == 0, f"htty console script failed: {output}"
+        assert "usage: htty" in output.lower(), "Expected usage message from htty console script"
+        assert "ht terminal emulation" in output.lower(), "Expected description from htty console script"
+
+    def test_console_script_htty_ht_help(self, python_version, python_env):
+        """Test that htty-ht console script works and shows help."""
+        exit_code, output = python_env.run_command("htty-ht --help")
+        assert exit_code == 0, f"htty-ht console script failed: {output}"
+        assert "usage: ht" in output.lower(), "Expected usage message from htty-ht console script"
+        assert "command to run inside the terminal" in output.lower(), (
+            "Expected description from htty-ht console script"
+        )
+
+    def test_console_script_htty_ht_version(self, python_version, python_env):
+        """Test that htty-ht console script shows version."""
+        exit_code, output = python_env.run_command("htty-ht --version")
+        assert exit_code == 0, f"htty-ht --version failed: {output}"
+        assert "ht" in output.lower(), "Expected version output from htty-ht console script"
+
+    def test_console_scripts_functionality(self, python_version, python_env):
+        """Test that both console scripts work with actual commands."""
+        # Test htty console script with echo
+        exit_code, output = python_env.run_command(f'htty --rows 3 --cols 20 -- echo "Console test {python_version}"')
+        assert exit_code == 0, f"htty console script with echo failed: {output}"
+        assert f"Console test {python_version}" in output, "Expected echo output from htty console script"
+
+        # Test htty-ht console script with echo (using ht directly)
+        exit_code, output = python_env.run_command(f'htty-ht --size 20x3 -- echo "Direct ht test {python_version}"')
+        assert exit_code == 0, f"htty-ht console script with echo failed: {output}"
+        # Note: ht direct output might be different format, so we just check it doesn't error
 
 
 class TestNixPythonConsistency:

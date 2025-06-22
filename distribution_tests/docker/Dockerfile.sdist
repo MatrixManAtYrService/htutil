@@ -1,0 +1,26 @@
+# Test sdist installation in clean Ubuntu environment (no ht binary)
+FROM ubuntu:22.04
+
+# Install Python, pip, and build tools (what users need for sdist)
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-venv \
+    python3-dev \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user (more realistic)
+RUN useradd -m -s /bin/bash testuser
+USER testuser
+WORKDIR /home/testuser
+
+# Set up Python environment
+ENV PATH="/home/testuser/.local/bin:$PATH"
+
+# The sdist will be mounted at runtime
+VOLUME ["/sdist"]
+
+# Default command - keep container running for testing
+CMD ["tail", "-f", "/dev/null"] 

@@ -140,11 +140,9 @@ let
     testEnv;
 
   # Release environment builder that includes multiple Python versions and wheel setup
+  # This is a CLEAN environment without htty pre-installed - for testing wheel installation
   buildReleaseEnv = filteredSrc:
     let
-      # Get the base Python environment
-      basePythonEnv = buildPythonEnv filteredSrc;
-
       # Create a wrapper that provides python3.10, python3.11, python3.12 commands
       pythonVersions = pkgs.runCommand "python-versions" { } ''
         mkdir -p $out/bin
@@ -153,15 +151,27 @@ let
         ln -s ${pkgs.python312}/bin/python $out/bin/python3.12
       '';
 
-      # Create an environment that includes the wheel and sets up environment variables
+      # Create a minimal Python environment with just basic tools (no htty)
+      # This ensures we're testing wheel installation in a clean environment
+      minimalPythonEnv = pkgs.buildEnv {
+        name = "minimal-python-env";
+        paths = [
+          pkgs.python3
+          pkgs.python3.pkgs.pip
+          pkgs.python3.pkgs.virtualenv
+          pkgs.python3.pkgs.pytest # Need pytest to run the tests
+        ];
+      };
+
+      # Create an environment that includes the wheel cache and multiple Python versions
+      # but does NOT include htty (so we can test installing it from the wheel)
       releaseEnv = pkgs.buildEnv {
         name = "htty-release-env";
         paths = [
-          basePythonEnv
-          pythonVersions
-          wheelCache
-          # Don't include the individual Python packages to avoid conflicts
-        ];
+          minimalPythonEnv # Clean Python environment without htty
+          pythonVersions # Multiple Python versions
+          wheelCache # Pre-downloaded dependency wheels
+        ] ++ testConfig.baseDeps; # Test dependencies (ht binary, vim, etc.)
       };
     in
     releaseEnv;
@@ -242,8 +252,46 @@ let
     };
   };
 
+  distributionChecks = {
+    scriptChecks = { };
+    derivationChecks = {
+      distributionTest = checks.pytest-env-builder {
+        inherit src;
+        envBuilder = buildReleaseEnv;
+        name = "pytest-distribution";
+        description = "Distribution tests - PyPI installation simulation";
+        testConfig = testConfig // {
+          extraEnvVars = testConfig.extraEnvVars or { } // {
+            WHEEL_CACHE_DIR = "${wheelCache}";
+            # Provide paths to pre-built artifacts for simple isolation tests
+            HTTY_WHEEL_PATH = 
+              let
+                wheelFilename = builtins.readFile "${httyWheel}/wheel-filename.txt";
+                cleanFilename = builtins.replaceStrings [ "\n" ] [ "" ] wheelFilename;
+              in
+              "${httyWheel}/${cleanFilename}";
+            HTTY_SDIST_PATH = "${flake.packages.${system}.htty-sdist}/htty-${version}.tar.gz";
+          };
+        };
+        includePatterns = [ "src/**" "distribution_tests/**" "README.md" ];
+        tests = [ 
+          "${src}/distribution_tests/test_installation_warnings.py"
+          "${src}/distribution_tests/test_simple_isolation.py"
+        ];
+        # Add extra dependencies needed for distribution testing
+        extraDeps = [ 
+          wheelCache 
+          flake.packages.${system}.htty-wheel
+          flake.packages.${system}.htty-sdist
+          pkgs.python3.pkgs.build
+          pkgs.python3.pkgs.virtualenv
+        ];
+      };
+    };
+  };
+
 in
 {
   inherit checks;
-  inherit fastChecks fullChecks releaseChecks;
+  inherit fastChecks fullChecks releaseChecks distributionChecks;
 }

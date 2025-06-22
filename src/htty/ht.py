@@ -782,3 +782,40 @@ def ht_process(
                 proc.kill()
             except Exception as kill_error:
                 logger.error(f"Failed to force kill ht process: {kill_error}")
+
+
+def main() -> None:
+    """
+    Command-line entry point for the 'ht' command.
+
+    This function provides direct access to the bundled ht binary,
+    passing through all command-line arguments unchanged.
+    """
+    import sys
+
+    try:
+        with ht_binary() as ht:
+            # Get all command-line arguments except the script name
+            args = sys.argv[1:]
+
+            # Build and execute the ht command
+            cmd = ht.build_command(*args)
+
+            # Use os.execvp to replace the current process with ht
+            # This ensures that signals, exit codes, and I/O work exactly as expected
+            import os
+
+            os.execvp(cmd[0], cmd)
+
+    except RuntimeError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except KeyboardInterrupt:
+        sys.exit(130)  # Standard exit code for SIGINT
+    except Exception as e:
+        print(f"Unexpected error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
