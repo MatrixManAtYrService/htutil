@@ -227,8 +227,14 @@ let
         };
         includePatterns = [ "src/**" "release_tests/**" "README.md" ];
         tests = [ "${src}/release_tests" ];
-        # Set wheel path via the standard parameters
-        wheelPath = "${httyWheel}/htty-${version}-py3-none-any.whl";
+        # Set wheel path via the standard parameters - read the actual wheel filename
+        wheelPath =
+          let
+            wheelFilename = builtins.readFile "${httyWheel}/wheel-filename.txt";
+            # Remove any trailing newline from the filename using string manipulation
+            cleanFilename = builtins.replaceStrings [ "\n" ] [ "" ] wheelFilename;
+          in
+          "${httyWheel}/${cleanFilename}";
         wheelPathEnvVar = "htty_WHEEL_PATH";
         # Add extra dependencies to make wheel cache available
         extraDeps = [ wheelCache ];
