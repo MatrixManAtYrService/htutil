@@ -268,14 +268,14 @@ def workspace_root():
 @pytest.fixture(scope="session")
 def htty_wheel():
     """Get htty wheel path from environment variable."""
-    wheel_path = os.environ.get("htty_WHEEL_PATH")
+    wheel_path = os.environ.get("HTTY_WHEEL_PATH")
     if not wheel_path:
         pytest.fail(
-            "htty_WHEEL_PATH environment variable is not set. Please set it to the path of the built htty wheel."
+            "HTTY_WHEEL_PATH environment variable is not set. Please set it to the path of the built htty wheel."
         )
     wheel_file = Path(wheel_path)
     if not wheel_file.exists():
-        pytest.fail(f"htty_WHEEL_PATH does not exist: {wheel_file}")
+        pytest.fail(f"HTTY_WHEEL_PATH does not exist: {wheel_file}")
     return wheel_file
 
 

@@ -10,7 +10,7 @@ let
 
   lib = flake.lib pkgs;
   inherit (lib.pypkg) pythonSet workspace;
-  inherit (lib.testcfg) testConfig;
+  inherit (lib.testcfg) testConfig testVim;
 
   httyWheel = flake.packages.${system}.htty-wheel;
 
@@ -202,10 +202,10 @@ let
         inherit src;
         envBuilder = buildPythonEnv;
         name = "pytest-test";
-        description = "Unit tests (tests/ directory)";
+        description = "Fast unit tests (tests/fast/ directory)";
         inherit testConfig;
         includePatterns = [ "src/**" "tests/**" "README.md" ];
-        tests = [ "${src}/tests" ];
+        tests = [ "${src}/tests/fast" ];
       };
     };
   };
@@ -233,19 +233,18 @@ let
         testConfig = testConfig // {
           extraEnvVars = testConfig.extraEnvVars or { } // {
             WHEEL_CACHE_DIR = "${wheelCache}";
+            # Set wheel path via environment variable - read the actual wheel filename
+            HTTY_WHEEL_PATH =
+              let
+                wheelFilename = builtins.readFile "${httyWheel}/wheel-filename.txt";
+                # Remove any trailing newline from the filename using string manipulation
+                cleanFilename = builtins.replaceStrings [ "\n" ] [ "" ] wheelFilename;
+              in
+              "${httyWheel}/${cleanFilename}";
           };
         };
-        includePatterns = [ "src/**" "test_release/**" "README.md" ];
-        tests = [ "${src}/test_release" ];
-        # Set wheel path via the standard parameters - read the actual wheel filename
-        wheelPath =
-          let
-            wheelFilename = builtins.readFile "${httyWheel}/wheel-filename.txt";
-            # Remove any trailing newline from the filename using string manipulation
-            cleanFilename = builtins.replaceStrings [ "\n" ] [ "" ] wheelFilename;
-          in
-          "${httyWheel}/${cleanFilename}";
-        wheelPathEnvVar = "htty_WHEEL_PATH";
+        includePatterns = [ "src/**" "tests/**" "README.md" ];
+        tests = [ "${src}/tests/slow" ];
         # Add extra dependencies to make wheel cache available
         extraDeps = [ wheelCache ];
       };
@@ -253,41 +252,59 @@ let
   };
 
   distributionChecks = {
-    scriptChecks = { };
-    derivationChecks = {
-      distributionTest = checks.pytest-env-builder {
-        inherit src;
-        envBuilder = buildReleaseEnv;
-        name = "pytest-distribution";
-        description = "Distribution tests - PyPI installation simulation";
-        testConfig = testConfig // {
-          extraEnvVars = testConfig.extraEnvVars or { } // {
-            WHEEL_CACHE_DIR = "${wheelCache}";
-            # Provide paths to pre-built artifacts for simple isolation tests
-            HTTY_WHEEL_PATH =
-              let
-                wheelFilename = builtins.readFile "${httyWheel}/wheel-filename.txt";
-                cleanFilename = builtins.replaceStrings [ "\n" ] [ "" ] wheelFilename;
-              in
-              "${httyWheel}/${cleanFilename}";
-            HTTY_SDIST_PATH = "${flake.packages.${system}.htty-sdist}/htty-${version}.tar.gz";
-          };
-        };
-        includePatterns = [ "src/**" "test_distribution/**" "README.md" ];
-        tests = [
-          "${src}/test_distribution/test_installation_warnings.py"
-          "${src}/test_distribution/test_simple_isolation.py"
-        ];
-        # Add extra dependencies needed for distribution testing
-        extraDeps = [
-          wheelCache
-          flake.packages.${system}.htty-wheel
-          flake.packages.${system}.htty-sdist
-          pkgs.python3.pkgs.build
-          pkgs.python3.pkgs.virtualenv
-        ];
+    scriptChecks = {
+      # Distribution tests that need access to system Docker/Podman
+      # Run as a script check to avoid Nix sandbox restrictions
+      distributionTest = {
+        description = "Distribution tests - Docker-based PyPI installation tests";
+        scriptContent = ''
+          set -euo pipefail
+
+          # Set up environment with all necessary tools
+          export PATH="${inputs.ht.packages.${pkgs.stdenv.hostPlatform.system}.ht}/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:$PATH"
+          export CONTAINER_TOOL="/usr/local/bin/docker"
+          export HTTY_TEST_CONTAINER_MODE="system-path"
+          export HTTY_TEST_VIM_TARGET="${testVim}/bin/vim"
+          export HTTY_HT_BIN="${inputs.ht.packages.${pkgs.stdenv.hostPlatform.system}.ht}/bin/ht"
+
+          echo "🔍 Distribution test environment setup:"
+          echo "PATH: $PATH"
+          echo "CONTAINER_TOOL: $CONTAINER_TOOL"
+
+          # Better Docker detection
+          echo "🔍 Docker detection:"
+          if [ -f "/usr/local/bin/docker" ]; then
+            echo "  /usr/local/bin/docker exists: $(ls -la /usr/local/bin/docker)"
+            if [ -x "/usr/local/bin/docker" ]; then
+              echo "  /usr/local/bin/docker is executable"
+              echo "  Trying to run: /usr/local/bin/docker --version"
+              /usr/local/bin/docker --version || echo "  Docker version failed: $?"
+            else
+              echo "  /usr/local/bin/docker is not executable"
+            fi
+          else
+            echo "  /usr/local/bin/docker does not exist"
+          fi
+
+          echo "Docker available: $(if command -v docker >/dev/null 2>&1; then echo "yes"; else echo "no"; fi)"
+          echo "HTTY_HT_BIN: $HTTY_HT_BIN"
+          echo "HTTY_TEST_VIM_TARGET: $HTTY_TEST_VIM_TARGET"
+
+          # Create a temporary working directory and copy source
+          TEMP_DIR=$(mktemp -d)
+          echo "🔍 Working in temporary directory: $TEMP_DIR"
+
+          # Copy source files to writable location
+          cp -r "${src}"/* "$TEMP_DIR"/
+          cd "$TEMP_DIR"
+
+          # Run the distribution tests using uv
+          echo "🚀 Running htty distribution tests..."
+          exec ${pkgs.uv}/bin/uv run --frozen pytest tests/dist/test_pypi_installation.py -v
+        '';
       };
     };
+    derivationChecks = { };
   };
 
 in

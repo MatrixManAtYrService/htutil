@@ -68,7 +68,7 @@ Once you have a wheel, you can run the release tests:
 
 ```bash
 # Set the wheel path for release tests
-export htty_WHEEL_PATH=$(pwd)/dist/htty-0.1.0-py3-none-any.whl
+export HTTY_WHEEL_PATH=$(pwd)/dist/htty-0.1.0-py3-none-any.whl
 
 # Run release tests (requires multiple Python versions: 3.10, 3.11, 3.12)
 uv run pytest test_release/ -v -s

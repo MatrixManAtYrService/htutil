@@ -1,11 +1,13 @@
-# Test wheel installation in clean Ubuntu environment
+# Test sdist installation from PyPI in clean Ubuntu environment (no ht binary)
 FROM ubuntu:22.04
 
-# Install Python and pip (simulating a typical user environment)
+# Install Python, pip, and build tools (what users need for sdist)
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
+    python3-dev \
+    build-essential \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -17,8 +19,9 @@ WORKDIR /home/testuser
 # Set up Python environment
 ENV PATH="/home/testuser/.local/bin:$PATH"
 
-# The wheel will be mounted at runtime
-VOLUME ["/wheels"]
+# Install htty from PyPI (will build from source) with verbose output to capture logs
+# Force installation from source to test sdist scenario
+RUN python3 -m pip install --user --verbose --no-binary=htty htty
 
 # Default command - keep container running for testing
 CMD ["tail", "-f", "/dev/null"] 

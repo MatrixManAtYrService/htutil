@@ -1,13 +1,11 @@
-# Test sdist installation in clean Ubuntu environment (no ht binary)
+# Test wheel installation from PyPI in clean Ubuntu environment
 FROM ubuntu:22.04
 
-# Install Python, pip, and build tools (what users need for sdist)
+# Install Python and pip (simulating a typical user environment)
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
-    python3-dev \
-    build-essential \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -19,8 +17,9 @@ WORKDIR /home/testuser
 # Set up Python environment
 ENV PATH="/home/testuser/.local/bin:$PATH"
 
-# The sdist will be mounted at runtime
-VOLUME ["/sdist"]
+# Install htty from PyPI with verbose output to capture logs
+# This simulates what real users would do
+RUN python3 -m pip install --user --verbose htty
 
 # Default command - keep container running for testing
 CMD ["tail", "-f", "/dev/null"] 

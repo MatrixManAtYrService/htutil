@@ -46,6 +46,13 @@ htty-ht = "htty.ht:main"
 testpaths = ["tests"]
 python_files = "test_*.py"
 
+# Test markers for different test categories
+markers = [
+    "fast: marks tests as fast unit tests",
+    "slow: marks tests as slow integration tests", 
+    "dist: marks tests as distribution tests requiring Docker",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=7.0,<8.0",
