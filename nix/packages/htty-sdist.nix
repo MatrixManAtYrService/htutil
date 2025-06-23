@@ -1,5 +1,5 @@
 # Build htty source distribution
-{ inputs, pkgs, ... }:
+{ pkgs, ... }:
 
 pkgs.runCommand "htty-sdist"
 {

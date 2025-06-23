@@ -40,14 +40,14 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - os: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
+            system: x86_64-linux
+          - os: ubuntu-latest-arm
+            system: aarch64-linux
           - os: macos-13
-            target: x86_64-apple-darwin
+            system: x86_64-darwin
           - os: macos-latest
-            target: aarch64-apple-darwin
-    runs-on: ${{ matrix.os }}${{ matrix.arch && format('-{0}', matrix.arch) || '' }}
+            system: aarch64-darwin
+    runs-on: ${{ matrix.os }}
     
     steps:
       - name: Checkout code
@@ -67,16 +67,52 @@ jobs:
       - name: Build wheel with Nix
         run: nix build .#htty-wheel
 
-      - name: Copy wheel
+      - name: Copy wheel and verify bundled binary
         run: |
           # Copy the wheel using the filename from the build
           WHEEL_NAME=$(cat result/wheel-filename.txt)
           cp "result/$WHEEL_NAME" ./
+          
+          # Show wheel size (should be ~1.5MB with bundled binary)
+          echo "📦 Wheel size:"
+          ls -lh "$WHEEL_NAME"
+          
+          # Get wheel size in bytes for validation
+          WHEEL_SIZE=$(stat -f%z "$WHEEL_NAME" 2>/dev/null || stat -c%s "$WHEEL_NAME" 2>/dev/null || echo "0")
+          echo "📦 Wheel size: $WHEEL_SIZE bytes"
+          
+          # Verify wheel is large enough (should be > 1MB with bundled binary)
+          if [ "$WHEEL_SIZE" -lt 1048576 ]; then
+            echo "❌ ERROR: Wheel is too small ($WHEEL_SIZE bytes), likely missing bundled binary"
+            exit 1
+          fi
+          
+          # Verify the wheel contains the bundled ht binary
+          echo "🔍 Verifying wheel contents..."
+          if python3 -m zipfile -l "$WHEEL_NAME" | grep -E "_bundled/ht$"; then
+            echo "✅ Found bundled ht binary in wheel"
+          else
+            echo "❌ ERROR: No bundled ht binary found in wheel!"
+            echo "📋 Wheel contents:"
+            python3 -m zipfile -l "$WHEEL_NAME"
+            exit 1
+          fi
+          
+          # Check ht binary size within the wheel
+          HT_SIZE=$(python3 -c "import zipfile; z=zipfile.ZipFile('$WHEEL_NAME','r'); print(next((info.file_size for info in z.infolist() if info.filename.endswith('_bundled/ht')), 0)); z.close()")
+          
+          echo "🔧 ht binary size in wheel: $HT_SIZE bytes"
+          if [ "$HT_SIZE" -lt 1048576 ]; then
+            echo "❌ ERROR: ht binary is too small ($HT_SIZE bytes)"
+            exit 1
+          fi
+          
+          echo "✅ Wheel verification passed - contains properly bundled ht binary"
 
       - name: Upload wheel
         uses: actions/upload-artifact@v4
         with:
-          name: wheel-${{ matrix.os }}-${{ matrix.target }}
+          name: wheel-${{ matrix.system }}
           path: "*.whl"
 
   publish-to-pypi:
@@ -108,6 +144,71 @@ jobs:
           pattern: wheel-*
           path: packages/
           merge-multiple: true
+
+      - name: Verify all packages before publishing
+        run: |
+          echo "📦 Packages to be published:"
+          ls -la packages/
+          
+          echo ""
+          echo "🔍 Verifying all wheel contents..."
+          
+          WHEEL_COUNT=0
+          FAILED_WHEELS=0
+          
+          for wheel in packages/*.whl; do
+            if [ ! -f "$wheel" ]; then
+              continue
+            fi
+            
+            WHEEL_COUNT=$((WHEEL_COUNT + 1))
+            echo ""
+            echo "📦 Checking $(basename "$wheel"):"
+            
+            # Check wheel size
+            WHEEL_SIZE=$(stat -f%z "$wheel" 2>/dev/null || stat -c%s "$wheel" 2>/dev/null || echo "0")
+            echo "   Size: $WHEEL_SIZE bytes ($(echo "scale=1; $WHEEL_SIZE/1024/1024" | bc -l 2>/dev/null || echo "?") MB)"
+            
+            # Verify wheel contains bundled binary
+            if python3 -m zipfile -l "$wheel" | grep -E "_bundled/ht$" >/dev/null; then
+              # Get ht binary size
+              HT_SIZE=$(python3 -c "import zipfile; z=zipfile.ZipFile('$wheel','r'); print(next((info.file_size for info in z.infolist() if info.filename.endswith('_bundled/ht')), 0)); z.close()")
+              echo "   ✅ Contains bundled ht binary ($HT_SIZE bytes)"
+              
+              # Verify sizes are reasonable
+              if [ "$WHEEL_SIZE" -lt 1048576 ]; then
+                echo "   ❌ ERROR: Wheel too small ($WHEEL_SIZE bytes)"
+                FAILED_WHEELS=$((FAILED_WHEELS + 1))
+              elif [ "$HT_SIZE" -lt 1048576 ]; then
+                echo "   ❌ ERROR: ht binary too small ($HT_SIZE bytes)"
+                FAILED_WHEELS=$((FAILED_WHEELS + 1))
+              fi
+            else
+              echo "   ❌ ERROR: Missing bundled ht binary!"
+              FAILED_WHEELS=$((FAILED_WHEELS + 1))
+            fi
+          done
+          
+          echo ""
+          echo "📊 Verification Summary:"
+          echo "   Total wheels: $WHEEL_COUNT"
+          echo "   Failed wheels: $FAILED_WHEELS"
+          
+          if [ "$FAILED_WHEELS" -gt 0 ]; then
+            echo ""
+            echo "❌ FAILED: $FAILED_WHEELS wheel(s) are missing bundled binaries or have other issues"
+            echo "Cannot publish to PyPI - wheels would be broken"
+            exit 1
+          fi
+          
+          if [ "$WHEEL_COUNT" -eq 0 ]; then
+            echo ""
+            echo "❌ FAILED: No wheels found to publish"
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ All $WHEEL_COUNT wheel(s) verified successfully - ready for PyPI publication"
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

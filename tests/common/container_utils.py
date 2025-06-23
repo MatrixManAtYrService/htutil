@@ -168,7 +168,7 @@ def find_container_tool() -> str:
     pytest.fail("Neither docker nor podman found. Please install a container runtime.")
 
 
-def test_basic_htty_functionality(container):
+def run_basic_htty_functionality_test(container):
     """Test that basic htty functionality works after installation."""
     exit_code, output = container.run_command(
         [
@@ -180,7 +180,7 @@ def test_basic_htty_functionality(container):
     assert "htty imported successfully" in output
 
 
-def test_htty_console_script(container):
+def run_htty_console_script_test(container):
     """Test that htty console script works."""
     exit_code, output = container.run_command(
         [
@@ -193,7 +193,7 @@ def test_htty_console_script(container):
     assert "usage: htty" in output.lower()
 
 
-def test_htty_ht_console_script_if_bundled(container, should_have_bundled_ht: bool):
+def run_htty_ht_console_script_test(container, should_have_bundled_ht: bool):
     """Test htty-ht console script behavior based on installation type."""
     if should_have_bundled_ht:
         # Wheel installation should have bundled ht, so htty-ht should work
@@ -227,7 +227,7 @@ def test_htty_ht_console_script_if_bundled(container, should_have_bundled_ht: bo
         ), f"Expected error about missing ht binary but got: {output}"
 
 
-def test_import_warnings(container, should_show_warnings: bool):
+def run_import_warnings_test(container, should_show_warnings: bool):
     """Test import warning behavior based on installation type."""
     exit_code, output = container.run_command(
         [
@@ -247,7 +247,7 @@ def test_import_warnings(container, should_show_warnings: bool):
         print(f"Wheel installation import output: {output}")
 
 
-def test_console_scripts_consistency(wheel_container, sdist_container):
+def run_console_scripts_consistency_test(wheel_container, sdist_container):
     """Test that both installations provide the same console scripts."""
     # Check wheel scripts
     wheel_exit, wheel_output = wheel_container.run_command(

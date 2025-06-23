@@ -18,11 +18,11 @@ try:
     from ..common.container_utils import (
         HttyTestContainer,
         find_container_tool,
-        test_basic_htty_functionality,
-        test_htty_console_script,
-        test_htty_ht_console_script_if_bundled,
-        test_import_warnings,
-        test_console_scripts_consistency,
+        run_basic_htty_functionality_test,
+        run_htty_console_script_test,
+        run_htty_ht_console_script_test,
+        run_import_warnings_test,
+        run_console_scripts_consistency_test,
     )
 except ImportError:
     # Fallback for when running as standalone script
@@ -32,11 +32,11 @@ except ImportError:
     from common.container_utils import (
         HttyTestContainer,
         find_container_tool,
-        test_basic_htty_functionality,
-        test_htty_console_script,
-        test_htty_ht_console_script_if_bundled,
-        test_import_warnings,
-        test_console_scripts_consistency,
+        run_basic_htty_functionality_test,
+        run_htty_console_script_test,
+        run_htty_ht_console_script_test,
+        run_import_warnings_test,
+        run_console_scripts_consistency_test,
     )
 
 
@@ -76,18 +76,18 @@ class TestWheelInstallation:
 
     def test_wheel_installs_successfully(self, wheel_container):
         """Test that wheel installs successfully from PyPI."""
-        test_basic_htty_functionality(wheel_container)
+        run_basic_htty_functionality_test(wheel_container)
 
     def test_wheel_console_scripts_work(self, wheel_container):
         """Test that console scripts work after PyPI wheel installation."""
-        test_htty_console_script(wheel_container)
+        run_htty_console_script_test(wheel_container)
 
         # Test htty-ht command - wheel should have bundled ht binary
-        test_htty_ht_console_script_if_bundled(wheel_container, should_have_bundled_ht=True)
+        run_htty_ht_console_script_test(wheel_container, should_have_bundled_ht=True)
 
     def test_wheel_import_no_warnings(self, wheel_container):
         """Test that importing htty from wheel shows no warnings (bundled ht binary)."""
-        test_import_warnings(wheel_container, should_show_warnings=False)
+        run_import_warnings_test(wheel_container, should_show_warnings=False)
 
     def test_wheel_htty_functionality(self, wheel_container):
         """Test basic htty functionality works with wheel installation."""
@@ -103,18 +103,18 @@ class TestSdistInstallation:
 
     def test_sdist_installs_successfully(self, sdist_container):
         """Test that sdist installs successfully from PyPI."""
-        test_basic_htty_functionality(sdist_container)
+        run_basic_htty_functionality_test(sdist_container)
 
     def test_sdist_console_scripts_work(self, sdist_container):
         """Test that console scripts work after PyPI sdist installation."""
-        test_htty_console_script(sdist_container)
+        run_htty_console_script_test(sdist_container)
 
         # Test htty-ht command - sdist should NOT have bundled ht binary
-        test_htty_ht_console_script_if_bundled(sdist_container, should_have_bundled_ht=False)
+        run_htty_ht_console_script_test(sdist_container, should_have_bundled_ht=False)
 
     def test_sdist_import_shows_warnings(self, sdist_container):
         """Test that importing htty from sdist shows appropriate warnings (no bundled ht binary)."""
-        test_import_warnings(sdist_container, should_show_warnings=True)
+        run_import_warnings_test(sdist_container, should_show_warnings=True)
 
     def test_sdist_helpful_error_messages(self, sdist_container):
         """Test that sdist installation provides helpful error messages when ht is missing."""
@@ -133,7 +133,7 @@ class TestCrossPlatformConsistency:
 
     def test_console_scripts_consistent(self, wheel_container, sdist_container):
         """Test that both installations provide the same console scripts."""
-        test_console_scripts_consistency(wheel_container, sdist_container)
+        run_console_scripts_consistency_test(wheel_container, sdist_container)
 
 
 def test_docker_environment_isolation():

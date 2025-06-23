@@ -16,9 +16,7 @@ let
 
   src = ../../.;
 
-  # Extract version from pyproject.toml
-  pyproject = builtins.fromTOML (builtins.readFile (src + "/pyproject.toml"));
-  inherit (pyproject.project) version;
+  # Note: pyproject.toml parsing available if needed for version extraction
 
   # Create a local wheels directory with the pre-fetched dependency
   wheelCache = pkgs.runCommand "wheel-cache"
@@ -141,7 +139,7 @@ let
 
   # Release environment builder that includes multiple Python versions and wheel setup
   # This is a CLEAN environment without htty pre-installed - for testing wheel installation
-  buildReleaseEnv = filteredSrc:
+  buildReleaseEnv = _:
     let
       # Create a wrapper that provides python3.10, python3.11, python3.12 commands
       pythonVersions = pkgs.runCommand "python-versions" { } ''

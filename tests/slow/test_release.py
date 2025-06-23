@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import zipfile
 from pathlib import Path
 from textwrap import dedent
 from typing import Tuple
@@ -296,6 +297,69 @@ def python_env(request, workspace_root, htty_wheel):
 @pytest.mark.parametrize("python_version", PYTHON_VERSIONS)
 class TestNixPython:
     """Test htty functionality across Python versions using Python's virtualenv."""
+
+    def test_wheel_contains_bundled_binary(self, python_version, python_env):
+        """Test that the htty wheel contains the bundled ht binary - this should catch CI packaging issues."""
+        # This test only needs to run once, but we parametrize it to ensure it runs for each test session
+        if python_version != PYTHON_VERSIONS[0]:
+            pytest.skip("Only need to check wheel contents once")
+
+        print(f"🔍 Verifying wheel contains bundled ht binary: {python_env.htty_wheel}")
+
+        # Check that the wheel file exists and is reasonably sized
+        wheel_size = python_env.htty_wheel.stat().st_size
+        print(f"📦 Wheel size: {wheel_size:,} bytes ({wheel_size / 1024 / 1024:.1f} MB)")
+
+        # A wheel with bundled binary should be at least 1MB (ht binary is ~1.4MB)
+        assert wheel_size > 1024 * 1024, f"Wheel seems too small ({wheel_size:,} bytes), likely missing bundled binary"
+
+        # Open the wheel as a zip file and check contents
+        with zipfile.ZipFile(python_env.htty_wheel, "r") as wheel_zip:
+            file_list = wheel_zip.namelist()
+
+            # Look for the bundled ht binary
+            bundled_files = [f for f in file_list if "_bundled" in f]
+            ht_binary_files = [f for f in file_list if f.endswith("_bundled/ht")]
+
+            print(f"📋 Bundled files in wheel: {bundled_files}")
+            print(f"🔧 ht binary files: {ht_binary_files}")
+
+            # Should have exactly one ht binary in _bundled directory
+            assert len(ht_binary_files) == 1, (
+                f"Expected exactly 1 ht binary, found {len(ht_binary_files)}: {ht_binary_files}"
+            )
+
+            ht_binary_path = ht_binary_files[0]
+
+            # Check that the ht binary is reasonably sized (should be ~1.4MB)
+            ht_info = wheel_zip.getinfo(ht_binary_path)
+            ht_size = ht_info.file_size
+            print(f"🔧 ht binary size: {ht_size:,} bytes ({ht_size / 1024 / 1024:.1f} MB)")
+
+            # ht binary should be at least 1MB
+            assert ht_size > 1024 * 1024, f"ht binary seems too small ({ht_size:,} bytes)"
+
+            # Verify the binary is marked as executable (Unix permissions)
+            # Note: This might not work on all platforms, so we'll just warn if it fails
+            try:
+                # Check if external attributes suggest executable permissions
+                # For Unix systems, executable files typically have 0o755 or similar
+                external_attr = ht_info.external_attr
+                if external_attr:
+                    # Extract Unix permissions from external attributes
+                    unix_perms = (external_attr >> 16) & 0o777
+                    if unix_perms:
+                        print(f"🔧 ht binary permissions: {oct(unix_perms)}")
+                        # Should have execute permission for owner at minimum
+                        assert unix_perms & 0o100, f"ht binary not marked as executable: {oct(unix_perms)}"
+                    else:
+                        print("⚠️  No Unix permissions found in wheel")
+                else:
+                    print("⚠️  No external attributes found in wheel")
+            except Exception as e:
+                print(f"⚠️  Could not check ht binary permissions: {e}")
+
+        print("✅ Wheel contains properly bundled ht binary")
 
     def test_cli_help(self, python_version, python_env):
         """Test that htty --help works."""
