@@ -2,7 +2,7 @@
   description = "A python wrapper around ht (a headless terminal utility)";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
     nixpkgs-python.url = "github:cachix/nixpkgs-python";
     blueprint.url = "github:numtide/blueprint";
     checkdef.url = "github:MatrixManAtYrService/checkdef";
@@ -30,7 +30,7 @@
       };
     };
     ht = {
-      url = "github:/MatrixManAtYrService/ht";
+      url = "github:MatrixManAtYrService/ht";
     };
   };
 

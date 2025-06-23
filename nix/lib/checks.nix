@@ -303,192 +303,192 @@ let
       };
 
       # Cross-platform wheel testing in Docker containers
-      crossPlatformWheelTest = 
+      crossPlatformWheelTest =
         {
           description = "Cross-platform wheel tests - Docker-based wheel testing with cross-compilation or emulation";
           scriptContent = ''
+                        set -euo pipefail
+
+                        echo "🚀 Cross-platform wheel testing"
+                        echo "Host platform: ${system}"
+
+                        # Simple container tool discovery without pytest dependency
+                        CONTAINER_TOOL=""
+
+                        # Check for Docker first
+                        for DOCKER_PATH in "/usr/local/bin/docker" "/usr/bin/docker" "/opt/homebrew/bin/docker" "docker"; do
+                          if command -v "$DOCKER_PATH" >/dev/null 2>&1; then
+                            if "$DOCKER_PATH" --version >/dev/null 2>&1; then
+                              CONTAINER_TOOL="$DOCKER_PATH"
+                              echo "✅ Found Docker: $CONTAINER_TOOL"
+                              break
+                            fi
+                          fi
+                        done
+
+                        # If no Docker, check for Podman
+                        if [ -z "$CONTAINER_TOOL" ]; then
+                          for PODMAN_PATH in "/usr/local/bin/podman" "/usr/bin/podman" "/opt/homebrew/bin/podman" "podman"; do
+                            if command -v "$PODMAN_PATH" >/dev/null 2>&1; then
+                              if "$PODMAN_PATH" --version >/dev/null 2>&1; then
+                                CONTAINER_TOOL="$PODMAN_PATH"
+                                echo "✅ Found Podman: $CONTAINER_TOOL"
+                                break
+                              fi
+                            fi
+                          done
+                        fi
+
+                        if [ -z "$CONTAINER_TOOL" ]; then
+                          echo "❌ No container tool found. Skipping cross-platform tests."
+                          echo "   Install Docker or Podman to run cross-platform wheel tests."
+                          exit 0
+                        fi
+
+                        # Try to build ARM Linux wheel using cross-compilation
+                        echo "🔨 Attempting to build ARM Linux wheel via cross-compilation..."
+                        CROSS_WHEEL_PATH=""
+                        if nix build --impure --expr '
+                          let
+                            flake = builtins.getFlake (toString ./.);
+                            pkgs = import flake.inputs.nixpkgs { system = builtins.currentSystem; };
+                          in
+                            pkgs.callPackage ./nix/packages/htty-wheel.nix {
+                              inputs = flake.inputs;
+                              targetSystem = "aarch64-linux";
+                            }
+                        ' 2>/dev/null; then
+                          CROSS_WHEEL_PATH="./result/htty-wheel.whl"
+                          WHEEL_NAME=$(cat result/wheel-filename.txt)
+                          echo "✅ Cross-compilation successful: $WHEEL_NAME"
+                          echo "🧪 Test approach: Cross-compiled ARM Linux wheel in ARM Linux container"
+                        else
+                          echo "⚠️ Cross-compilation failed (expected on some platforms)"
+                          echo "🧪 Test approach: Host wheel in emulated ARM Linux container"
+                          CROSS_WHEEL_PATH="${httyWheel}/htty-wheel.whl"
+                          WHEEL_NAME=$(cat "${httyWheel}/wheel-filename.txt")
+                        fi
+
+                        echo "📦 Testing wheel: $WHEEL_NAME"
+                        echo "📁 Wheel path: $CROSS_WHEEL_PATH"
+
+                        # Create temporary directory for test
+                        TEMP_DIR=$(mktemp -d)
+                        echo "🔍 Working in: $TEMP_DIR"
+
+                        # Copy wheel to temp directory
+                        cp "$CROSS_WHEEL_PATH" "$TEMP_DIR/$WHEEL_NAME"
+
+                        # Create a test script that handles both cross-compiled and emulated scenarios
+                        cat > "$TEMP_DIR/test_wheel.sh" << 'EOF'
+            #!/bin/bash
             set -euo pipefail
 
-            echo "🚀 Cross-platform wheel testing"
-            echo "Host platform: ${system}"
+            echo "🔧 Container platform info:"
+            uname -a
+            echo ""
 
-            # Simple container tool discovery without pytest dependency
-            CONTAINER_TOOL=""
-            
-            # Check for Docker first
-            for DOCKER_PATH in "/usr/local/bin/docker" "/usr/bin/docker" "/opt/homebrew/bin/docker" "docker"; do
-              if command -v "$DOCKER_PATH" >/dev/null 2>&1; then
-                if "$DOCKER_PATH" --version >/dev/null 2>&1; then
-                  CONTAINER_TOOL="$DOCKER_PATH"
-                  echo "✅ Found Docker: $CONTAINER_TOOL"
-                  break
+            echo "🔧 Installing htty wheel..."
+            set +e  # Temporarily disable exit on error
+            python3 -m pip install --force-reinstall "/wheels/$WHEEL_NAME"
+            PIP_EXIT_CODE=$?
+            set -e  # Re-enable exit on error
+
+            if [ $PIP_EXIT_CODE -ne 0 ]; then
+                echo "❌ Installation failed"
+                # Check if this is expected (host wheel in emulated container)
+                if [[ "$WHEEL_NAME" == *"macosx"* ]] || [[ "$WHEEL_NAME" == *"darwin"* ]]; then
+                    echo "✅ This is expected! macOS wheel correctly rejected by Linux container."
+                    echo "   This validates that platform-specific wheels are properly tagged."
+                    echo "   In CI, cross-compiled Linux wheels will install successfully."
+                    exit 0
+                else
+                    echo "❌ Unexpected installation failure for Linux wheel"
+                    exit 1
                 fi
-              fi
-            done
-            
-            # If no Docker, check for Podman
-            if [ -z "$CONTAINER_TOOL" ]; then
-              for PODMAN_PATH in "/usr/local/bin/podman" "/usr/bin/podman" "/opt/homebrew/bin/podman" "podman"; do
-                if command -v "$PODMAN_PATH" >/dev/null 2>&1; then
-                  if "$PODMAN_PATH" --version >/dev/null 2>&1; then
-                    CONTAINER_TOOL="$PODMAN_PATH"
-                    echo "✅ Found Podman: $CONTAINER_TOOL"
-                    break
-                  fi
+            fi
+
+            echo "✅ Installation successful"
+
+            # Test CLI availability
+            echo "🔧 Testing htty CLI availability..."
+            htty --help > /dev/null
+
+            if [ $? -ne 0 ]; then
+                echo "❌ CLI test failed"
+                exit 1
+            fi
+
+            echo "✅ CLI available"
+
+            # Test htty-ht console script (this requires the bundled ht binary)
+            echo "🔧 Testing htty-ht console script..."
+            htty-ht --help > /dev/null
+
+            if [ $? -ne 0 ]; then
+                echo "❌ htty-ht console script failed"
+                # Check if this is expected (host wheel in emulated container)
+                if [[ "$WHEEL_NAME" == *"macosx"* ]] || [[ "$WHEEL_NAME" == *"darwin"* ]]; then
+                    echo "⚠️  This is expected when testing host-platform wheel in emulated container"
+                    echo "   The bundled binary is for the host architecture, not the container architecture"
+                    echo "   This validates that the wheel won't work cross-platform without proper cross-compilation"
+                else
+                    echo "❌ Unexpected failure - this should work with cross-compiled wheel"
+                    exit 1
                 fi
-              done
-            fi
-
-            if [ -z "$CONTAINER_TOOL" ]; then
-              echo "❌ No container tool found. Skipping cross-platform tests."
-              echo "   Install Docker or Podman to run cross-platform wheel tests."
-              exit 0
-            fi
-
-            # Try to build ARM Linux wheel using cross-compilation
-            echo "🔨 Attempting to build ARM Linux wheel via cross-compilation..."
-            CROSS_WHEEL_PATH=""
-            if nix build --impure --expr '
-              let
-                flake = builtins.getFlake (toString ./.);
-                pkgs = import flake.inputs.nixpkgs { system = builtins.currentSystem; };
-              in
-                pkgs.callPackage ./nix/packages/htty-wheel.nix {
-                  inputs = flake.inputs;
-                  targetSystem = "aarch64-linux";
-                }
-            ' 2>/dev/null; then
-              CROSS_WHEEL_PATH="./result/htty-wheel.whl"
-              WHEEL_NAME=$(cat result/wheel-filename.txt)
-              echo "✅ Cross-compilation successful: $WHEEL_NAME"
-              echo "🧪 Test approach: Cross-compiled ARM Linux wheel in ARM Linux container"
             else
-              echo "⚠️ Cross-compilation failed (expected on some platforms)"
-              echo "🧪 Test approach: Host wheel in emulated ARM Linux container"
-              CROSS_WHEEL_PATH="${httyWheel}/htty-wheel.whl"
-              WHEEL_NAME=$(cat "${httyWheel}/wheel-filename.txt")
+                echo "✅ htty-ht console script works!"
+                if [[ "$WHEEL_NAME" == *"manylinux"* ]] && [[ "$WHEEL_NAME" == *"aarch64"* ]]; then
+                    echo "🎉 Cross-compiled ARM Linux binary is functional!"
+                fi
             fi
-            
-            echo "📦 Testing wheel: $WHEEL_NAME"
-            echo "📁 Wheel path: $CROSS_WHEEL_PATH"
-            
-            # Create temporary directory for test
-            TEMP_DIR=$(mktemp -d)
-            echo "🔍 Working in: $TEMP_DIR"
-            
-            # Copy wheel to temp directory
-            cp "$CROSS_WHEEL_PATH" "$TEMP_DIR/$WHEEL_NAME"
-            
-            # Create a test script that handles both cross-compiled and emulated scenarios
-            cat > "$TEMP_DIR/test_wheel.sh" << 'EOF'
-#!/bin/bash
-set -euo pipefail
 
-echo "🔧 Container platform info:"
-uname -a
-echo ""
+            # Test Python import
+            echo "🔧 Testing Python import..."
+            python3 -c "import htty; print('✅ Import successful')"
 
-echo "🔧 Installing htty wheel..."
-set +e  # Temporarily disable exit on error
-python3 -m pip install --force-reinstall "/wheels/$WHEEL_NAME"
-PIP_EXIT_CODE=$?
-set -e  # Re-enable exit on error
-
-if [ $PIP_EXIT_CODE -ne 0 ]; then
-    echo "❌ Installation failed"
-    # Check if this is expected (host wheel in emulated container)
-    if [[ "$WHEEL_NAME" == *"macosx"* ]] || [[ "$WHEEL_NAME" == *"darwin"* ]]; then
-        echo "✅ This is expected! macOS wheel correctly rejected by Linux container."
-        echo "   This validates that platform-specific wheels are properly tagged."
-        echo "   In CI, cross-compiled Linux wheels will install successfully."
-        exit 0
-    else
-        echo "❌ Unexpected installation failure for Linux wheel"
-        exit 1
-    fi
-fi
-
-echo "✅ Installation successful"
-
-# Test CLI availability
-echo "🔧 Testing htty CLI availability..."
-htty --help > /dev/null
-
-if [ $? -ne 0 ]; then
-    echo "❌ CLI test failed"
-    exit 1
-fi
-
-echo "✅ CLI available"
-
-# Test htty-ht console script (this requires the bundled ht binary)
-echo "🔧 Testing htty-ht console script..."
-htty-ht --help > /dev/null
-
-if [ $? -ne 0 ]; then
-    echo "❌ htty-ht console script failed"
-    # Check if this is expected (host wheel in emulated container)
-    if [[ "$WHEEL_NAME" == *"macosx"* ]] || [[ "$WHEEL_NAME" == *"darwin"* ]]; then
-        echo "⚠️  This is expected when testing host-platform wheel in emulated container"
-        echo "   The bundled binary is for the host architecture, not the container architecture"
-        echo "   This validates that the wheel won't work cross-platform without proper cross-compilation"
-    else
-        echo "❌ Unexpected failure - this should work with cross-compiled wheel"
-        exit 1
-    fi
-else
-    echo "✅ htty-ht console script works!"
-    if [[ "$WHEEL_NAME" == *"manylinux"* ]] && [[ "$WHEEL_NAME" == *"aarch64"* ]]; then
-        echo "🎉 Cross-compiled ARM Linux binary is functional!"
-    fi
-fi
-
-# Test Python import
-echo "🔧 Testing Python import..."
-python3 -c "import htty; print('✅ Import successful')"
-
-if [ $? -ne 0 ]; then
-    echo "❌ Import failed"
-    exit 1
-fi
-
-echo "🎉 Wheel testing complete!"
-EOF
-            
-            # Make the test script executable
-            chmod +x "$TEMP_DIR/test_wheel.sh"
-            
-            # Run the test in an ARM Linux container
-            echo "🐳 Running test in ARM Linux container..."
-            $CONTAINER_TOOL run --rm \
-              --platform linux/arm64 \
-              -v "$TEMP_DIR:/wheels" \
-              -e "WHEEL_NAME=$WHEEL_NAME" \
-              python:3.11-slim \
-              bash -c "
-                echo '🔧 Setting up container environment...'
-                apt-get update -qq && apt-get install -y -qq vim
-                echo '✅ Container setup complete'
-                echo '🚀 Running wheel tests...'
-                /wheels/test_wheel.sh
-              "
-            
-            # Check the result
-            if [ $? -eq 0 ]; then
-              echo "🎉 Cross-platform wheel test PASSED!"
-              if [ -n "$CROSS_WHEEL_PATH" ] && [[ "$CROSS_WHEEL_PATH" == "./result/htty-wheel.whl" ]]; then
-                echo "✅ Successfully tested cross-compiled ARM Linux wheel"
-              else
-                echo "📝 Note: This test validated the Docker container setup."
-                echo "   For true cross-platform validation, use CI or enable cross-compilation."
-              fi
-            else
-              echo "❌ Cross-platform wheel test FAILED!"
-              exit 1
+            if [ $? -ne 0 ]; then
+                echo "❌ Import failed"
+                exit 1
             fi
-            
-            # Cleanup
-            rm -rf "$TEMP_DIR"
+
+            echo "🎉 Wheel testing complete!"
+            EOF
+
+                        # Make the test script executable
+                        chmod +x "$TEMP_DIR/test_wheel.sh"
+
+                        # Run the test in an ARM Linux container
+                        echo "🐳 Running test in ARM Linux container..."
+                        $CONTAINER_TOOL run --rm \
+                          --platform linux/arm64 \
+                          -v "$TEMP_DIR:/wheels" \
+                          -e "WHEEL_NAME=$WHEEL_NAME" \
+                          python:3.11-slim \
+                          bash -c "
+                            echo '🔧 Setting up container environment...'
+                            apt-get update -qq && apt-get install -y -qq vim
+                            echo '✅ Container setup complete'
+                            echo '🚀 Running wheel tests...'
+                            /wheels/test_wheel.sh
+                          "
+
+                        # Check the result
+                        if [ $? -eq 0 ]; then
+                          echo "🎉 Cross-platform wheel test PASSED!"
+                          if [ -n "$CROSS_WHEEL_PATH" ] && [[ "$CROSS_WHEEL_PATH" == "./result/htty-wheel.whl" ]]; then
+                            echo "✅ Successfully tested cross-compiled ARM Linux wheel"
+                          else
+                            echo "📝 Note: This test validated the Docker container setup."
+                            echo "   For true cross-platform validation, use CI or enable cross-compilation."
+                          fi
+                        else
+                          echo "❌ Cross-platform wheel test FAILED!"
+                          exit 1
+                        fi
+
+                        # Cleanup
+                        rm -rf "$TEMP_DIR"
           '';
         };
     };
