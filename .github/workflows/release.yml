@@ -72,11 +72,14 @@ jobs:
           echo "🧪 Testing cross-compiled wheel in target platform container"
           WHEEL_NAME=$(cat result/wheel-filename.txt)
           
+          # Copy wheel to current directory for Docker access
+          cp "result/$WHEEL_NAME" ./
+          
           docker run --rm --platform linux/arm64 \
             -v "$(pwd):/test" \
             python:3.11-slim \
             bash -c "
-              pip install /test/result/$WHEEL_NAME && \
+              pip install /test/$WHEEL_NAME && \
               python -c 'import htty; print(\"✅ Import successful\")' && \
               htty --help > /dev/null && \
               htty-ht --version > /dev/null && \
