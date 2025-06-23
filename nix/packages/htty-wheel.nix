@@ -1,8 +1,9 @@
 # Build htty wheel with bundled ht binary
-{ inputs, pkgs, ... }:
+{ inputs, pkgs, targetSystem ? null, ... }:
 
 let
-  inherit (pkgs.stdenv.hostPlatform) system;
+  # Use targetSystem if provided, otherwise use host platform
+  system = if targetSystem != null then targetSystem else pkgs.stdenv.hostPlatform.system;
   htPackage = inputs.ht.packages.${system}.ht;
 
   # Platform-specific wheel tags based on the target system
@@ -17,8 +18,11 @@ let
   # ABI tag - use none since the Python code is compatible across versions
   # Only the bundled ht binary is platform-specific, not the Python ABI
   abiTag = "none";
+  
+  # Suffix for cross-compiled wheels
+  nameSuffix = if targetSystem != null then "-cross-${targetSystem}" else "";
 in
-pkgs.runCommand "htty-wheel"
+pkgs.runCommand "htty-wheel${nameSuffix}"
 {
   nativeBuildInputs = with pkgs; [
     python312
@@ -70,6 +74,7 @@ pkgs.runCommand "htty-wheel"
   # Store the wheel filename for programmatic access
   echo "$NEW_NAME" > "$out/wheel-filename.txt"
   echo "$NEW_WHEEL" > "$out/wheel-path.txt"
+  echo "${system}" > "$out/target-system.txt"
 
   # Create a predictable symlink for easy reference
   ln -s "$NEW_NAME" "$out/htty-wheel.whl"
@@ -77,5 +82,6 @@ pkgs.runCommand "htty-wheel"
   # Show what was built
   echo "Built wheel package: $NEW_NAME"
   echo "Platform-specific wheel created for: ${system} -> ${platformTag}"
+  ${if targetSystem != null then ''echo "Cross-compiled from: ${pkgs.stdenv.hostPlatform.system} -> ${system}"'' else ""}
   ls -la $out/
 ''

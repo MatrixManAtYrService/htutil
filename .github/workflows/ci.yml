@@ -33,6 +33,93 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: nix run .#checklist-release -- -v
 
+  cross-platform-test:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU for cross-compilation testing
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/arm64
+
+      - name: Install Nix
+        uses: nixbuild/nix-quick-install-action@v30
+
+      - name: Restore and save Nix store
+        uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-store
+          restore-prefixes-first-match: nix-store
+          # Collect garbage until store is at most 8GB before saving cache
+          gc-max-store-size: 8G
+
+      - name: Test cross-platform wheel building and testing
+        run: |
+          echo "🧪 Testing cross-platform wheel functionality"
+          
+          # Build ARM Linux wheel using cross-compilation
+          echo "🔨 Building ARM Linux wheel via cross-compilation"
+          nix build --impure --expr '
+            let
+              flake = builtins.getFlake (toString ./.);
+              pkgs = import flake.inputs.nixpkgs { system = builtins.currentSystem; };
+            in
+              pkgs.callPackage ./nix/packages/htty-wheel.nix {
+                inputs = flake.inputs;
+                targetSystem = "aarch64-linux";
+              }
+          '
+          
+          # Test the cross-compiled wheel
+          WHEEL_NAME=$(cat result/wheel-filename.txt)
+          echo "📦 Built cross-compiled wheel: $WHEEL_NAME"
+          
+          # Create test script
+          cat > test_cross_wheel.sh << 'EOF'
+          #!/bin/bash
+          set -euo pipefail
+          
+          echo "🔧 Testing cross-compiled wheel in ARM Linux container"
+          echo "Container platform: $(uname -a)"
+          
+          echo "🔧 Installing wheel..."
+          python3 -m pip install --force-reinstall "/wheels/$WHEEL_NAME"
+          
+          echo "✅ Installation successful"
+          
+          # Test basic functionality
+          echo "🔧 Testing CLI..."
+          htty --help > /dev/null
+          echo "✅ CLI works"
+          
+          echo "🔧 Testing bundled binary..."
+          htty-ht --help > /dev/null
+          echo "✅ Cross-compiled bundled binary works"
+          
+          echo "🔧 Testing Python import..."
+          python3 -c "import htty; print('✅ Import works')"
+          
+          echo "🎉 Cross-platform test PASSED!"
+          EOF
+          
+          chmod +x test_cross_wheel.sh
+          
+          # Test in ARM Linux container
+          docker run --rm \
+            --platform linux/arm64 \
+            -v "$(pwd):/wheels" \
+            -e "WHEEL_NAME=$WHEEL_NAME" \
+            python:3.11-slim \
+            bash -c "
+              apt-get update -qq && apt-get install -y -qq vim
+              /wheels/test_cross_wheel.sh
+            "
+          
+          echo "✅ Cross-platform functionality validated"
+
   build-wheels:
     if: startsWith(github.ref, 'refs/tags/')
     needs: test
@@ -41,8 +128,9 @@ jobs:
         include:
           - os: ubuntu-latest
             system: x86_64-linux
-          - os: ubuntu-latest-arm
+          - os: ubuntu-latest
             system: aarch64-linux
+            cross_compile: true
           - os: macos-13
             system: x86_64-darwin
           - os: macos-latest
@@ -52,6 +140,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up QEMU for cross-compilation
+        if: matrix.cross_compile
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/arm64
 
       - name: Install Nix
         uses: nixbuild/nix-quick-install-action@v30
@@ -65,7 +159,25 @@ jobs:
           gc-max-store-size: 8G
 
       - name: Build wheel with Nix
-        run: nix build .#htty-wheel
+        run: |
+          echo "🔨 Building wheel for ${{ matrix.system }}"
+          if [ "${{ matrix.cross_compile }}" = "true" ]; then
+            echo "Cross-compiling from $(nix eval --impure --expr 'builtins.currentSystem') to ${{ matrix.system }}"
+            # Use parameterized wheel builder for cross-compilation
+            nix build --impure --expr '
+              let
+                flake = builtins.getFlake (toString ./.);
+                pkgs = import flake.inputs.nixpkgs { system = builtins.currentSystem; };
+              in
+                pkgs.callPackage ./nix/packages/htty-wheel.nix {
+                  inputs = flake.inputs;
+                  targetSystem = "${{ matrix.system }}";
+                }
+            '
+          else
+            echo "Building native wheel for ${{ matrix.system }}"
+            nix build .#htty-wheel
+          fi
 
       - name: Copy wheel and verify it matches release tests
         run: |
@@ -76,11 +188,83 @@ jobs:
           echo "📦 Built wheel: $WHEEL_NAME"
           ls -lh "$WHEEL_NAME"
           
+          # Show target system info
+          if [ -f "result/target-system.txt" ]; then
+            echo "🎯 Target system: $(cat result/target-system.txt)"
+          fi
+          
           # This wheel is built using the same process as release tests
           # If release tests pass, this wheel contains the bundled binary
           echo "✅ Wheel built successfully using same process as release tests"
           echo "   Release tests validate that htty-ht console script works"
           echo "   which proves the bundled binary is present and functional"
+
+      - name: Test cross-platform wheel in container
+        if: matrix.cross_compile
+        run: |
+          echo "🧪 Testing cross-compiled wheel in target platform container"
+          WHEEL_NAME=$(cat result/wheel-filename.txt)
+          
+          # Create test script
+          cat > test_cross_wheel.sh << 'EOF'
+          #!/bin/bash
+          set -euo pipefail
+          
+          echo "🔧 Container platform info:"
+          uname -a
+          echo ""
+          
+          echo "🔧 Installing cross-compiled htty wheel..."
+          python3 -m pip install --force-reinstall "/wheels/$WHEEL_NAME"
+          
+          if [ $? -ne 0 ]; then
+              echo "❌ Installation failed"
+              exit 1
+          fi
+          
+          echo "✅ Installation successful"
+          
+          # Test CLI availability
+          echo "🔧 Testing htty CLI availability..."
+          htty --help > /dev/null
+          if [ $? -ne 0 ]; then
+              echo "❌ CLI test failed"
+              exit 1
+          fi
+          echo "✅ CLI available"
+          
+          # Test htty-ht console script (this requires the bundled ht binary)
+          echo "🔧 Testing htty-ht console script..."
+          htty-ht --help > /dev/null
+          if [ $? -ne 0 ]; then
+              echo "❌ htty-ht console script failed"
+              exit 1
+          fi
+          echo "✅ htty-ht console script works (cross-compiled binary functional)"
+          
+          # Test Python import
+          echo "🔧 Testing Python import..."
+          python3 -c "import htty; print('✅ Import successful')"
+          if [ $? -ne 0 ]; then
+              echo "❌ Import failed"
+              exit 1
+          fi
+          
+          echo "🎉 Cross-platform wheel test PASSED!"
+          EOF
+          
+          chmod +x test_cross_wheel.sh
+          
+          # Run test in target platform container
+          docker run --rm \
+            --platform linux/arm64 \
+            -v "$(pwd):/wheels" \
+            -e "WHEEL_NAME=$WHEEL_NAME" \
+            python:3.11-slim \
+            bash -c "
+              apt-get update -qq && apt-get install -y -qq vim
+              /wheels/test_cross_wheel.sh
+            "
 
       - name: Upload wheel
         uses: actions/upload-artifact@v4
