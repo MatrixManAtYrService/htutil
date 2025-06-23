@@ -1,0 +1,67 @@
+name: Test
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'nix/**'
+      - '.github/**'
+  push:
+    branches:
+      - main
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+
+      - name: Run fast checks
+        run: nix run .#checklist-fast -- -v
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+
+      - name: Run full test suite
+        if: github.ref == 'refs/heads/main'
+        run: nix run .#checklist-full -- -v
+
+      - name: Run release checklist
+        if: startsWith(github.ref, 'refs/tags/')
+        run: nix run .#checklist-release -- -v
+
+  test-wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+
+      - name: Build and test wheel
+        run: |
+          echo "🔨 Building wheel for validation"
+          nix build .#htty-wheel
+          
+          echo "🧪 Testing wheel installation"
+          WHEEL_NAME=$(cat result/wheel-filename.txt)
+          python3 -m pip install --user "result/$WHEEL_NAME"
+          
+          echo "✅ Testing CLI and bundled binary"
+          ~/.local/bin/htty --help > /dev/null
+          ~/.local/bin/htty-ht --version > /dev/null
+          
+          echo "✅ Wheel validation successful" 

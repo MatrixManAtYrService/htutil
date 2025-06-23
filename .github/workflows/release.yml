@@ -1,0 +1,166 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Perform a dry run (build wheels but do not publish)'
+        type: boolean
+        default: false
+
+jobs:
+  build-wheels:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux builds - matching polars deployment targets
+          - os: ubuntu-latest
+            system: x86_64-linux
+          - os: ubuntu-latest
+            system: aarch64-linux
+            cross_compile: true
+            
+          # macOS builds - matching polars deployment targets
+          - os: macos-13  # Intel - matches polars' macosx_10_12_x86_64
+            system: x86_64-darwin
+          - os: macos-latest  # ARM64 - matches polars' macosx_11_0_arm64  
+            system: aarch64-darwin
+            
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU for cross-compilation
+        if: matrix.cross_compile
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/arm64
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+
+      - name: Build wheel
+        run: |
+          echo "🔨 Building ${{ matrix.system }} wheel"
+          
+          if [ "${{ matrix.cross_compile }}" = "true" ]; then
+            echo "Cross-compiling from $(nix eval --impure --expr 'builtins.currentSystem') to ${{ matrix.system }}"
+            nix build --impure --expr '
+              let
+                flake = builtins.getFlake (toString ./.);
+                pkgs = import flake.inputs.nixpkgs { system = builtins.currentSystem; };
+              in
+                pkgs.callPackage ./nix/packages/htty-wheel.nix {
+                  inputs = flake.inputs;
+                  targetSystem = "${{ matrix.system }}";
+                }
+            '
+          else
+            echo "Building native wheel for ${{ matrix.system }}"
+            nix build .#htty-wheel
+          fi
+
+      - name: Test cross-compiled wheel
+        if: matrix.cross_compile
+        run: |
+          echo "🧪 Testing cross-compiled wheel in target platform container"
+          WHEEL_NAME=$(cat result/wheel-filename.txt)
+          
+          docker run --rm --platform linux/arm64 \
+            -v "$(pwd):/test" \
+            python:3.11-slim \
+            bash -c "
+              pip install /test/result/$WHEEL_NAME && \
+              python -c 'import htty; print(\"✅ Import successful\")' && \
+              htty --help > /dev/null && \
+              htty-ht --version > /dev/null && \
+              echo '🎉 Cross-compiled wheel works!'
+            "
+
+      - name: Copy and verify wheel
+        run: |
+          WHEEL_NAME=$(cat result/wheel-filename.txt)
+          cp "result/$WHEEL_NAME" ./
+          
+          echo "📦 Built wheel: $WHEEL_NAME"
+          ls -lh "$WHEEL_NAME"
+          
+          if [ -f "result/target-system.txt" ]; then
+            echo "🎯 Target system: $(cat result/target-system.txt)"
+          fi
+
+      - name: Upload wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.system }}
+          path: "*.whl"
+
+  publish-to-pypi:
+    needs: build-wheels
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write  # For trusted publishing
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+
+      - name: Create packages directory
+        run: mkdir -p packages/
+
+      - name: Build source distribution
+        run: |
+          nix build .#htty-sdist
+          cp result/*.tar.gz packages/
+
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-*
+          path: packages/
+          merge-multiple: true
+
+      - name: Verify packages for publication
+        run: |
+          echo "📦 Packages to be published:"
+          ls -la packages/
+          
+          WHEEL_COUNT=$(ls packages/*.whl 2>/dev/null | wc -l)
+          SDIST_COUNT=$(ls packages/*.tar.gz 2>/dev/null | wc -l)
+          
+          echo "   Wheels: $WHEEL_COUNT"
+          echo "   Source distributions: $SDIST_COUNT"
+          
+          if [ "$WHEEL_COUNT" -eq 0 ]; then
+            echo "❌ ERROR: No wheels found"
+            exit 1
+          fi
+          
+          if [ "$SDIST_COUNT" -eq 0 ]; then
+            echo "❌ ERROR: No source distribution found"
+            exit 1
+          fi
+          
+          echo "✅ All packages ready for publication"
+
+      - name: Publish to PyPI
+        if: ${{ !inputs.dry-run }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packages/
+
+      - name: Dry run complete
+        if: ${{ inputs.dry-run }}
+        run: |
+          echo "🏁 Dry run complete - packages built but not published"
+          echo "To publish for real, create a release tag or run workflow without dry-run" 
