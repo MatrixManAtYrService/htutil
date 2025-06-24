@@ -1,3 +1,18 @@
+# DEPRECATED: Local wheel building with Nix
+# 
+# This local wheel building approach has limitations:
+# - Cargo cannot access crates.io in Nix sandbox without complex setup
+# - Results in binaries with Nix store dependencies (not portable)
+# - Requires significant network and cache configuration
+#
+# For portable wheel building, use GitHub Actions CI instead:
+#   - Push a tag or use workflow_dispatch on GitHub
+#   - CI builds truly portable wheels using standard Rust toolchain
+#   - Wheels work on any compatible system without Nix
+#
+# This file is kept for reference but may not work without additional setup.
+# Use `nix build .#htty` for local development instead.
+
 # Build htty wheel with portable ht binary using maturin
 { inputs, pkgs, targetSystem ? null, ... }:
 
@@ -68,6 +83,21 @@ pkgs.runCommand "htty-wheel-${system}"
 {
   inherit nativeBuildInputs;
 } ''
+  echo "❌ ERROR: Local wheel building is deprecated"
+  echo ""
+  echo "🚫 This Nix-based wheel building has known issues:"
+  echo "   - Cargo cannot access crates.io in Nix sandbox"
+  echo "   - Results in non-portable binaries with Nix store paths"
+  echo "   - Complex network and cache configuration required"
+  echo ""
+  echo "✅ For portable wheel building, use GitHub Actions CI:"
+  echo "   1. Push a git tag: git tag v0.1.32 && git push origin v0.1.32"
+  echo "   2. Or use workflow dispatch on GitHub"
+  echo "   3. CI will build portable wheels for all platforms"
+  echo ""
+  echo "🔧 For local development, use: nix build .#htty"
+  echo ""
+  exit 1
   # Create temporary build directory
   mkdir -p build
   cd build
