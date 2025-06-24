@@ -40,7 +40,7 @@ let
   isCrossCompiling = targetSystem != null;
   buildType = if isCrossCompiling then "cross-compiled" else "native";
 
-  # Build environment packages
+  # Build environment packages  
   nativeBuildInputs = with pkgs; [
     python312
     python312.pkgs.pip
@@ -53,10 +53,10 @@ let
     rustc
     cargo
     rustfmt
-    python312.pkgs.maturin
+    maturin # Available as top-level package
   ] ++ pkgs.lib.optionals isCrossCompiling [
-    # Cross-compilation tools
-    pkgs.pkgsCross.${rustTarget}.stdenv.cc
+    # Cross-compilation tools (simplified)
+    gcc
   ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
     # macOS specific dependencies
     pkgs.libiconv
@@ -67,15 +67,6 @@ in
 pkgs.runCommand "htty-wheel-${system}"
 {
   inherit nativeBuildInputs;
-  
-  # Set up cross-compilation environment
-  CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER = pkgs.lib.optionalString 
-    (isCrossCompiling && system == "x86_64-linux")
-    "${pkgs.pkgsCross.gnu64.stdenv.cc}/bin/x86_64-unknown-linux-gnu-gcc";
-    
-  CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER = pkgs.lib.optionalString
-    (isCrossCompiling && system == "aarch64-linux") 
-    "${pkgs.pkgsCross.aarch64-multiplatform.stdenv.cc}/bin/aarch64-unknown-linux-gnu-gcc";
 } ''
   # Create temporary build directory
   mkdir -p build
@@ -102,14 +93,13 @@ pkgs.runCommand "htty-wheel-${system}"
   rm -rf src/htty/_bundled
   mkdir -p src/htty/_bundled
 
-  # Build ht binary using maturin/cargo for portability
+  # Build ht binary using cargo for portability (maturin is for Python wheels)
   echo "🦀 Building portable ht binary using Rust toolchain..."
   cd ht-src
   
   ${if isCrossCompiling then ''
     echo "🔀 Cross-compiling for ${rustTarget}"
-    # Add the target if not already present
-    rustup target add ${rustTarget} || true
+    # Simple cross-compilation with cargo
     cargo build --release --target ${rustTarget}
     HT_BINARY="target/${rustTarget}/release/ht"
   '' else ''
