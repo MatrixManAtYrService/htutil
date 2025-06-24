@@ -64,6 +64,7 @@ jobs:
           # Copy source to writable directory (Nix store is read-only)
           echo "📋 Copying source to writable directory..."
           cp -r "$HT_SOURCE" ./ht-source
+          chmod -R u+w ./ht-source
           cd ./ht-source
           
           if [ "${{ matrix.build_type }}" = "cross-compiled" ]; then
