@@ -58,7 +58,7 @@ jobs:
           echo "🦀 Building portable ht binary"
           
           # Get ht source from Nix input
-          HT_SOURCE=$(nix eval --impure --raw --expr 'builtins.getFlake (toString ./.).inputs.ht.outPath')
+          HT_SOURCE=$(nix eval --impure --raw --expr '(builtins.getFlake (toString ./.)).inputs.ht.outPath')
           
           # Build ht binary using standard Rust toolchain
           cd "$HT_SOURCE"
