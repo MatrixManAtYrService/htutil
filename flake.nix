@@ -31,6 +31,7 @@
     };
     ht = {
       url = "github:MatrixManAtYrService/ht";
+      flake = false; # Use as source input, not flake output
     };
   };
 

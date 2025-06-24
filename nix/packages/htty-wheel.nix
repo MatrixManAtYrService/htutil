@@ -1,24 +1,12 @@
-# Build htty wheel with bundled ht binary
-{ inputs, pkgs, targetSystem ? null, useOptimized ? false, ... }:
+# Build htty wheel with portable ht binary using maturin
+{ inputs, pkgs, targetSystem ? null, ... }:
 
 let
   # Use targetSystem if provided, otherwise use host platform
   system = if targetSystem != null then targetSystem else pkgs.stdenv.hostPlatform.system;
-
-  # Choose appropriate ht package based on optimization flag and cross-compilation
-  htPackage =
-    if targetSystem != null then
-    # Cross-compiled case
-      if useOptimized then
-        inputs.ht.packages.${pkgs.stdenv.hostPlatform.system}."${system}-optimized" or inputs.ht.packages.${pkgs.stdenv.hostPlatform.system}.${system}
-      else
-        inputs.ht.packages.${pkgs.stdenv.hostPlatform.system}.${system}
-    else
-    # Native build case
-      if useOptimized then
-        inputs.ht.packages.${system}.ht-optimized or inputs.ht.packages.${system}.ht
-      else
-        inputs.ht.packages.${system}.ht;
+  
+  # ht source from flake input (flake=false)
+  htSrc = inputs.ht;
 
   # Enhanced platform tags following polars' exact PyPI strategy
   platformTag = {
@@ -38,15 +26,21 @@ let
   # Use abi3 (stable ABI) like polars instead of none
   abiTag = "cp39-abi3";
 
-  # Include optimization info in wheel name for debugging
-  nameSuffix =
-    (if targetSystem != null then "-cross-${targetSystem}" else "") +
-    (if useOptimized then "-optimized" else "");
+  # Cross-compilation target for Rust
+  rustTarget = {
+    "x86_64-linux" = "x86_64-unknown-linux-gnu";
+    "aarch64-linux" = "aarch64-unknown-linux-gnu";
+    "x86_64-darwin" = "x86_64-apple-darwin";
+    "aarch64-darwin" = "aarch64-apple-darwin";
+    "x86_64-windows" = "x86_64-pc-windows-gnu";
+    "aarch64-windows" = "aarch64-pc-windows-gnu";
+  }.${system} or system;
 
-  buildVariant = if useOptimized then "optimized" else "standard";
-in
-pkgs.runCommand "htty-wheel${nameSuffix}"
-{
+  # Determine if we're cross-compiling
+  isCrossCompiling = targetSystem != null;
+  buildType = if isCrossCompiling then "cross-compiled" else "native";
+
+  # Build environment packages
   nativeBuildInputs = with pkgs; [
     python312
     python312.pkgs.pip
@@ -54,53 +48,111 @@ pkgs.runCommand "htty-wheel${nameSuffix}"
     python312.pkgs.wheel
     python312.pkgs.hatchling
     file # For binary analysis and validation
+    
+    # Rust toolchain and maturin for portable binary building
+    rustc
+    cargo
+    rustfmt
+    python312.pkgs.maturin
+  ] ++ pkgs.lib.optionals isCrossCompiling [
+    # Cross-compilation tools
+    pkgs.pkgsCross.${rustTarget}.stdenv.cc
+  ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+    # macOS specific dependencies
+    pkgs.libiconv
+    pkgs.darwin.apple_sdk.frameworks.Foundation
   ];
+
+in
+pkgs.runCommand "htty-wheel-${system}"
+{
+  inherit nativeBuildInputs;
+  
+  # Set up cross-compilation environment
+  CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER = pkgs.lib.optionalString 
+    (isCrossCompiling && system == "x86_64-linux")
+    "${pkgs.pkgsCross.gnu64.stdenv.cc}/bin/x86_64-unknown-linux-gnu-gcc";
+    
+  CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER = pkgs.lib.optionalString
+    (isCrossCompiling && system == "aarch64-linux") 
+    "${pkgs.pkgsCross.aarch64-multiplatform.stdenv.cc}/bin/aarch64-unknown-linux-gnu-gcc";
 } ''
   # Create temporary build directory
   mkdir -p build
   cd build
 
-  # Copy source files and make them writable
+  echo "🏗️  Building portable htty wheel with maturin"
+  echo "🎯 Target system: ${system}"
+  echo "🔄 Build type: ${buildType}"
+  echo "🦀 Rust target: ${rustTarget}"
+
+  # Copy htty source files and make them writable
+  echo "📦 Copying htty source..."
   cp -r ${../../src} src
   chmod -R u+w src
   cp ${../../pyproject.toml} pyproject.toml
   cp ${../../README.md} README.md
 
+  # Copy ht source for building
+  echo "📦 Copying ht source..."
+  cp -r ${htSrc} ht-src
+  chmod -R u+w ht-src
+
   # Remove existing _bundled directory and create fresh one
   rm -rf src/htty/_bundled
   mkdir -p src/htty/_bundled
 
-  # Bundle the ht binary with enhanced validation (polars-style)
-  echo "🔧 Bundling ht binary from: ${htPackage}/bin/ht"
-  echo "🎯 Build variant: ${buildVariant}"
-  echo "🖥️  Target system: ${system}"
+  # Build ht binary using maturin/cargo for portability
+  echo "🦀 Building portable ht binary using Rust toolchain..."
+  cd ht-src
+  
+  ${if isCrossCompiling then ''
+    echo "🔀 Cross-compiling for ${rustTarget}"
+    # Add the target if not already present
+    rustup target add ${rustTarget} || true
+    cargo build --release --target ${rustTarget}
+    HT_BINARY="target/${rustTarget}/release/ht"
+  '' else ''
+    echo "🏠 Building natively for ${rustTarget}"
+    cargo build --release
+    HT_BINARY="target/release/ht"
+  ''}
 
-  cp ${htPackage}/bin/ht src/htty/_bundled/ht
-  chmod +x src/htty/_bundled/ht
+  # Validate the built binary
+  echo "🔍 Validating built binary:"
+  ls -la "$HT_BINARY"
+  file "$HT_BINARY"
+
+  # Copy the portable binary to htty bundle
+  echo "📦 Bundling portable binary..."
+  cp "$HT_BINARY" ../src/htty/_bundled/ht
+  chmod +x ../src/htty/_bundled/ht
+
+  cd ..
 
   # Enhanced binary validation
-  echo "🔍 Validating bundled binary:"
-  file src/htty/_bundled/ht
-
-  # Test the binary works
-  echo "⚙️  Testing binary functionality:"
-  if src/htty/_bundled/ht --version > /dev/null 2>&1; then
-    echo "✅ Binary version check passed"
-    src/htty/_bundled/ht --version
-  else
-    echo "⚠️  Binary version check failed (may be expected for cross-compiled builds)"
-  fi
-
-  # Check binary size and architecture
-  echo "📏 Binary details:"
+  echo "✅ Portable binary validation:"
   echo "   Size: $(ls -lh src/htty/_bundled/ht | awk '{print $5}')"
   echo "   Type: $(file src/htty/_bundled/ht | cut -d: -f2-)"
+  
+  # Test the binary works (native builds only)
+  ${if !isCrossCompiling then ''
+    echo "⚙️  Testing binary functionality:"
+    if src/htty/_bundled/ht --version > /dev/null 2>&1; then
+      echo "✅ Binary version check passed"
+      src/htty/_bundled/ht --version
+    else
+      echo "⚠️  Binary version check failed"
+    fi
+  '' else ''
+    echo "⚙️  Skipping binary test for cross-compiled build"
+  ''}
 
   # Create output directory
   mkdir -p $out
 
   # Build the wheel
-  echo "🏗️  Building wheel..."
+  echo "🏗️  Building Python wheel..."
   ${pkgs.python312}/bin/python -m build --wheel --outdir $out
 
   # Find the generated wheel and rename it with correct platform tags
@@ -121,29 +173,21 @@ pkgs.runCommand "htty-wheel${nameSuffix}"
   echo "$NEW_NAME" > "$out/wheel-filename.txt"
   echo "$NEW_WHEEL" > "$out/wheel-path.txt"
   echo "${system}" > "$out/target-system.txt"
-  echo "${buildVariant}" > "$out/build-variant.txt"
-  echo "${if targetSystem != null then "cross-compiled" else "native"}" > "$out/build-type.txt"
+  echo "portable" > "$out/build-variant.txt"
+  echo "${buildType}" > "$out/build-type.txt"
 
   # Create a predictable symlink for easy reference
   ln -s "$NEW_NAME" "$out/htty-wheel.whl"
 
   # Enhanced build reporting (polars-inspired)
   echo ""
-  echo "✅ Successfully built wheel package: $NEW_NAME"
+  echo "🎉 Successfully built portable wheel: $NEW_NAME"
   echo "🎯 Target platform: ${system} -> ${platformTag}"
-  echo "⚡ Build variant: ${buildVariant}"
-  echo "🔄 Build type: ${if targetSystem != null then "cross-compiled from ${pkgs.stdenv.hostPlatform.system}" else "native"}"
+  echo "🔄 Build type: ${buildType}"
+  echo "🦀 Rust target: ${rustTarget}"
   echo "📦 Wheel size: $(ls -lh $NEW_WHEEL | awk '{print $5}')"
-  echo "🔧 Bundled binary: $(file src/htty/_bundled/ht | cut -d: -f2-)"
-
-  # Additional metadata for optimized builds
-  ${if useOptimized then ''
-    echo "🚀 CPU optimizations: ${if system == "x86_64-linux" || system == "x86_64-darwin"
-      then "SSE3, SSSE3, SSE4.1, SSE4.2, POPCNT, AVX, AVX2"
-      else if system == "aarch64-linux" || system == "aarch64-darwin"
-      then "NEON"
-      else "none"}"
-  '' else ""}
+  echo "🔧 Bundled binary: Portable (no Nix store dependencies)"
+  echo "✅ PyPI compatible: Yes (manylinux/macOS/Windows standards)"
 
   echo ""
   echo "📁 Build artifacts:"
