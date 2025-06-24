@@ -48,38 +48,73 @@ jobs:
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
 
-      - name: Build wheel
+      - name: Set up Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: ${{ matrix.build_type == 'cross-compiled' && matrix.system == 'aarch64-linux' && 'aarch64-unknown-linux-gnu' || '' }}
+
+      - name: Build ht binary portably
         run: |
-          echo "🔨 Building ${{ matrix.system }} wheel (${{ matrix.build_type }})"
+          echo "🦀 Building portable ht binary"
+          
+          # Get ht source from Nix input
+          HT_SOURCE=$(nix eval --impure --raw --expr 'builtins.getFlake (toString ./.).inputs.ht.outPath')
+          
+          # Build ht binary using standard Rust toolchain
+          cd "$HT_SOURCE"
           
           if [ "${{ matrix.build_type }}" = "cross-compiled" ]; then
-            echo "Cross-compiling from $(nix eval --impure --expr 'builtins.currentSystem') to ${{ matrix.system }}"
-            nix build --impure --expr '
-              let
-                flake = builtins.getFlake (toString ./.);
-                pkgs = import flake.inputs.nixpkgs { system = builtins.currentSystem; };
-              in
-                pkgs.callPackage ./nix/packages/htty-wheel.nix {
-                  inputs = flake.inputs;
-                  targetSystem = "${{ matrix.system }}";
-                }
-            '
+            echo "🔀 Cross-compiling for ${{ matrix.system }}"
+            cargo build --release --target ${{ matrix.system == 'aarch64-linux' && 'aarch64-unknown-linux-gnu' || matrix.system }}
+            HT_BINARY="target/${{ matrix.system == 'aarch64-linux' && 'aarch64-unknown-linux-gnu' || matrix.system }}/release/ht"
           else
-            echo "Building native wheel for ${{ matrix.system }}"
-            nix build .#htty-wheel
+            echo "🏠 Building natively"
+            cargo build --release 
+            HT_BINARY="target/release/ht"
           fi
+          
+          # Copy binary to workspace
+          mkdir -p "$GITHUB_WORKSPACE/ht-binary"
+          cp "$HT_BINARY" "$GITHUB_WORKSPACE/ht-binary/ht"
+          chmod +x "$GITHUB_WORKSPACE/ht-binary/ht"
+          
+          echo "✅ Built portable binary:"
+          file "$GITHUB_WORKSPACE/ht-binary/ht"
+
+      - name: Build Python wheel
+        run: |
+          echo "🐍 Building Python wheel with bundled binary"
+          
+          # Create build directory
+          mkdir -p build
+          cd build
+          
+          # Copy Python source
+          cp -r ../src .
+          cp ../pyproject.toml .
+          cp ../README.md .
+          
+          # Bundle the ht binary
+          mkdir -p src/htty/_bundled
+          cp ../ht-binary/ht src/htty/_bundled/ht
+          
+          # Build wheel using standard Python tools
+          python -m pip install build
+          python -m build --wheel --outdir ../dist
+          
+          # List built wheels
+          echo "📦 Built wheels:"
+          ls -la ../dist/
 
       - name: Test cross-compiled wheel
         if: matrix.build_type == 'cross-compiled'
         run: |
           echo "🧪 Testing cross-compiled wheel in target platform container"
-          WHEEL_NAME=$(cat result/wheel-filename.txt)
-          
-          # Copy wheel to current directory for Docker access
-          cp "result/$WHEEL_NAME" ./
+          WHEEL_PATH=$(ls dist/*.whl | head -1)
+          WHEEL_NAME=$(basename "$WHEEL_PATH")
           
           docker run --rm --platform linux/arm64 \
-            -v "$(pwd):/test" \
+            -v "$(pwd)/dist:/test" \
             python:3.11-slim \
             bash -c "
               echo '🔧 Installing cross-compiled wheel...' && \
@@ -105,21 +140,21 @@ jobs:
 
       - name: Copy and verify wheel
         run: |
-          WHEEL_NAME=$(cat result/wheel-filename.txt)
-          cp "result/$WHEEL_NAME" ./
+          # Find the built wheel
+          WHEEL_PATH=$(ls dist/*.whl | head -1)
+          WHEEL_NAME=$(basename "$WHEEL_PATH")
           
           echo "📦 Built wheel: $WHEEL_NAME"
-          ls -lh "$WHEEL_NAME"
+          ls -lh dist/
           
-          if [ -f "result/target-system.txt" ]; then
-            echo "🎯 Target system: $(cat result/target-system.txt)"
-          fi
+          echo "🎯 Target system: ${{ matrix.system }}"
+          echo "🔄 Build type: ${{ matrix.build_type }}"
 
       - name: Upload wheel
         uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ matrix.system }}
-          path: "*.whl"
+          path: "dist/*.whl"
 
   publish-to-pypi:
     needs: build-wheels
