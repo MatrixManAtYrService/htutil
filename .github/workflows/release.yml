@@ -122,17 +122,41 @@ jobs:
         run: |
           echo "🐍 Building Python wheel with bundled binary"
           
-          # Bundle the ht binary into source tree
-          mkdir -p src/htty/_bundled
+          # Create a fresh build environment
+          rm -rf build_temp
+          mkdir -p build_temp
+          cd build_temp
+          
+          # Copy all source files
+          cp -r ../src .
+          cp ../pyproject.toml .
+          cp ../README.md .
+          
+          # Ensure _bundled directory has the __init__.py file
+          if [ ! -f "src/htty/_bundled/__init__.py" ]; then
+            echo "# Bundled binary directory" > src/htty/_bundled/__init__.py
+          fi
+          
+          # Copy the ht binary to _bundled directory
           cp "$GITHUB_WORKSPACE/ht-binary/ht" src/htty/_bundled/ht
           chmod +x src/htty/_bundled/ht
           
+          # Verify the bundled structure
+          echo "🔍 Bundled directory contents:"
+          ls -la src/htty/_bundled/
+          
           # Build wheel using standard Python tools
           python -m pip install build
-          python -m build --wheel --outdir dist
+          python -m build --wheel --outdir ../dist
           
+          cd ..
           echo "📦 Built wheels:"
           ls -la dist/
+          
+          # Verify wheel contents
+          echo "🔍 Wheel contents (htty related files):"
+          WHEEL_PATH=$(ls dist/*.whl | head -1)
+          python -m zipfile -l "$WHEEL_PATH" | grep -E "(htty|ht)" | head -15
 
       - name: Test wheel (native builds only)
         # Only test on native builds since cross-compiled wheels need target architecture
