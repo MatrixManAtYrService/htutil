@@ -63,42 +63,76 @@ jobs:
             echo "target=${{ matrix.system }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build wheel with maturin (Polars approach)
-        uses: PyO3/maturin-action@v1
-        with:
-          command: build
-          target: ${{ matrix.build_type == 'cross-compiled' && steps.rust-target.outputs.target || '' }}
-          args: --release --out dist
-          # Use manylinux 2_24 for aarch64 like Polars
-          manylinux: ${{ matrix.system == 'aarch64-linux' && '2_24' || 'auto' }}
-          before-script-linux: |
-            # Get ht source and build it
-            HT_SOURCE=$(nix eval --impure --raw --expr '(builtins.getFlake (toString ./.)).inputs.ht.outPath')
-            echo "📁 ht source: $HT_SOURCE"
+      - name: Install cross-compilation toolchain
+        if: matrix.build_type == 'cross-compiled' && matrix.system == 'aarch64-linux'
+        run: |
+          echo "🔧 Installing ARM64 cross-compilation toolchain..."
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          
+          echo "🔧 Configuring Cargo for cross-compilation..."
+          mkdir -p ~/.cargo
+          cat >> ~/.cargo/config.toml << 'EOF'
+          [target.aarch64-unknown-linux-gnu]
+          linker = "aarch64-linux-gnu-gcc"
+          EOF
+          
+          echo "✅ Cross-compilation toolchain ready"
+
+      - name: Build ht binary
+        run: |
+          echo "🦀 Building ht binary"
+          
+          # Get ht source from Nix input
+          HT_SOURCE=$(nix eval --impure --raw --expr '(builtins.getFlake (toString ./.)).inputs.ht.outPath')
+          echo "📁 ht source: $HT_SOURCE"
+          
+          # Copy source to writable directory (Nix store is read-only)
+          echo "📋 Copying source to writable directory..."
+          cp -r "$HT_SOURCE" ./ht-source
+          chmod -R u+w ./ht-source
+          cd ./ht-source
+          
+          if [ "${{ matrix.build_type }}" = "cross-compiled" ]; then
+            echo "🔀 Cross-compiling for ${{ steps.rust-target.outputs.target }}"
             
-            # Copy and build ht binary
-            cp -r "$HT_SOURCE" ./ht-source
-            chmod -R u+w ./ht-source
-            cd ./ht-source
+            # Set additional environment variables for cross-compilation
+            export CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
+            export CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++
+            export AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar
+            export STRIP_aarch64_unknown_linux_gnu=aarch64-linux-gnu-strip
             
-            if [ "${{ matrix.build_type }}" = "cross-compiled" ]; then
-              echo "🔀 Cross-compiling ht for ${{ steps.rust-target.outputs.target }}"
-              cargo build --release --target ${{ steps.rust-target.outputs.target }}
-              HT_BINARY="target/${{ steps.rust-target.outputs.target }}/release/ht"
-            else
-              echo "🏠 Building ht natively"
-              cargo build --release
-              HT_BINARY="target/release/ht"
-            fi
-            
-            # Bundle the ht binary
-            cd ..
-            mkdir -p src/htty/_bundled
-            cp "./ht-source/$HT_BINARY" src/htty/_bundled/ht
-            chmod +x src/htty/_bundled/ht
-            
-            echo "✅ Bundled ht binary:"
-            file src/htty/_bundled/ht
+            cargo build --release --target ${{ steps.rust-target.outputs.target }}
+            HT_BINARY="target/${{ steps.rust-target.outputs.target }}/release/ht"
+          else
+            echo "🏠 Building ht natively"
+            cargo build --release
+            HT_BINARY="target/release/ht"
+          fi
+          
+          # Copy binary to workspace
+          mkdir -p "$GITHUB_WORKSPACE/ht-binary"
+          cp "$HT_BINARY" "$GITHUB_WORKSPACE/ht-binary/ht"
+          chmod +x "$GITHUB_WORKSPACE/ht-binary/ht"
+          
+          echo "✅ Built ht binary:"
+          file "$GITHUB_WORKSPACE/ht-binary/ht"
+
+      - name: Build Python wheel
+        run: |
+          echo "🐍 Building Python wheel with bundled binary"
+          
+          # Bundle the ht binary into source tree
+          mkdir -p src/htty/_bundled
+          cp "$GITHUB_WORKSPACE/ht-binary/ht" src/htty/_bundled/ht
+          chmod +x src/htty/_bundled/ht
+          
+          # Build wheel using standard Python tools
+          python -m pip install build
+          python -m build --wheel --outdir dist
+          
+          echo "📦 Built wheels:"
+          ls -la dist/
 
       - name: Test wheel (native builds only)
         # Only test on native builds since cross-compiled wheels need target architecture
