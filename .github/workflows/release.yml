@@ -53,106 +53,87 @@ jobs:
         with:
           target: ${{ matrix.build_type == 'cross-compiled' && matrix.system == 'aarch64-linux' && 'aarch64-unknown-linux-gnu' || '' }}
 
-      - name: Build ht binary portably
-        run: |
-          echo "🦀 Building portable ht binary"
-          
-          # Get ht source from Nix input
-          HT_SOURCE=$(nix eval --impure --raw --expr '(builtins.getFlake (toString ./.)).inputs.ht.outPath')
-          echo "📁 ht source: $HT_SOURCE"
-          
-          # Copy source to writable directory (Nix store is read-only)
-          echo "📋 Copying source to writable directory..."
-          cp -r "$HT_SOURCE" ./ht-source
-          chmod -R u+w ./ht-source
-          cd ./ht-source
-          
-          if [ "${{ matrix.build_type }}" = "cross-compiled" ]; then
-            echo "🔀 Cross-compiling for ${{ matrix.system }}"
-            cargo build --release --target ${{ matrix.system == 'aarch64-linux' && 'aarch64-unknown-linux-gnu' || matrix.system }}
-            HT_BINARY="target/${{ matrix.system == 'aarch64-linux' && 'aarch64-unknown-linux-gnu' || matrix.system }}/release/ht"
-          else
-            echo "🏠 Building natively"
-            cargo build --release 
-            HT_BINARY="target/release/ht"
-          fi
-          
-          # Copy binary to workspace
-          mkdir -p "$GITHUB_WORKSPACE/ht-binary"
-          cp "$HT_BINARY" "$GITHUB_WORKSPACE/ht-binary/ht"
-          chmod +x "$GITHUB_WORKSPACE/ht-binary/ht"
-          
-          echo "✅ Built portable binary:"
-          file "$GITHUB_WORKSPACE/ht-binary/ht"
-
-      - name: Build Python wheel
-        run: |
-          echo "🐍 Building Python wheel with bundled binary"
-          
-          # Create build directory
-          mkdir -p build
-          cd build
-          
-          # Copy Python source
-          cp -r ../src .
-          cp ../pyproject.toml .
-          cp ../README.md .
-          
-          # Bundle the ht binary
-          mkdir -p src/htty/_bundled
-          cp ../ht-binary/ht src/htty/_bundled/ht
-          
-          # Build wheel using standard Python tools
-          python -m pip install build
-          python -m build --wheel --outdir ../dist
-          
-          # List built wheels
-          echo "📦 Built wheels:"
-          ls -la ../dist/
-
-      - name: Test cross-compiled wheel
+      - name: Set Rust target for cross-compilation
         if: matrix.build_type == 'cross-compiled'
+        id: rust-target
         run: |
-          echo "🧪 Testing cross-compiled wheel in target platform container"
+          if [ "${{ matrix.system }}" = "aarch64-linux" ]; then
+            echo "target=aarch64-unknown-linux-gnu" >> $GITHUB_OUTPUT
+          else
+            echo "target=${{ matrix.system }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build wheel with maturin (Polars approach)
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          target: ${{ matrix.build_type == 'cross-compiled' && steps.rust-target.outputs.target || '' }}
+          args: --release --out dist
+          # Use manylinux 2_24 for aarch64 like Polars
+          manylinux: ${{ matrix.system == 'aarch64-linux' && '2_24' || 'auto' }}
+          before-script-linux: |
+            # Get ht source and build it
+            HT_SOURCE=$(nix eval --impure --raw --expr '(builtins.getFlake (toString ./.)).inputs.ht.outPath')
+            echo "📁 ht source: $HT_SOURCE"
+            
+            # Copy and build ht binary
+            cp -r "$HT_SOURCE" ./ht-source
+            chmod -R u+w ./ht-source
+            cd ./ht-source
+            
+            if [ "${{ matrix.build_type }}" = "cross-compiled" ]; then
+              echo "🔀 Cross-compiling ht for ${{ steps.rust-target.outputs.target }}"
+              cargo build --release --target ${{ steps.rust-target.outputs.target }}
+              HT_BINARY="target/${{ steps.rust-target.outputs.target }}/release/ht"
+            else
+              echo "🏠 Building ht natively"
+              cargo build --release
+              HT_BINARY="target/release/ht"
+            fi
+            
+            # Bundle the ht binary
+            cd ..
+            mkdir -p src/htty/_bundled
+            cp "./ht-source/$HT_BINARY" src/htty/_bundled/ht
+            chmod +x src/htty/_bundled/ht
+            
+            echo "✅ Bundled ht binary:"
+            file src/htty/_bundled/ht
+
+      - name: Test wheel (native builds only)
+        # Only test on native builds since cross-compiled wheels need target architecture
+        if: matrix.build_type == 'native'
+        run: |
+          echo "🧪 Testing wheel installation and functionality"
           WHEEL_PATH=$(ls dist/*.whl | head -1)
           WHEEL_NAME=$(basename "$WHEEL_PATH")
           
-          docker run --rm --platform linux/arm64 \
-            -v "$(pwd)/dist:/test" \
-            python:3.11-slim \
-            bash -c "
-              echo '🔧 Installing cross-compiled wheel...' && \
-              pip install /test/$WHEEL_NAME && \
-              echo '✅ Installation successful' && \
-              \
-              echo '🔧 Testing Python import...' && \
-              python -c 'import htty; print(\"✅ Import successful\")' && \
-              \
-              echo '🔧 Checking bundled binary exists...' && \
-              python -c 'import htty; import os; ht_path = os.path.join(os.path.dirname(htty.__file__), \"bin\", \"ht\"); print(f\"Binary at: {ht_path}\"); print(f\"Exists: {os.path.exists(ht_path)}\"); print(f\"Executable: {os.access(ht_path, os.X_OK) if os.path.exists(ht_path) else False}\")' && \
-              \
-              echo '🔧 Checking binary architecture...' && \
-              python -c 'import htty; import os, subprocess; ht_path = os.path.join(os.path.dirname(htty.__file__), \"bin\", \"ht\"); result = subprocess.run([\"file\", ht_path], capture_output=True, text=True); print(f\"Architecture: {result.stdout.strip()}\")' && \
-              \
-              echo '🔧 Testing CLI availability (htty-ht console script should exist)...' && \
-              which htty-ht > /dev/null && echo '✅ htty-ht console script found' || echo '❌ htty-ht console script missing' && \
-              \
-              echo '🎉 Cross-compiled wheel validation complete!' && \
-              echo '📝 Binary built with portable toolchain (maturin/cargo)' && \
-              echo '✅ Should work on any compatible Linux system without Nix'
-            "
+          echo "📦 Installing wheel: $WHEEL_NAME"
+          pip install --force-reinstall --verbose "$WHEEL_PATH"
+          
+          echo "🔧 Testing Python import..."
+          python -c 'import htty; print("✅ Import successful")'
+          
+          echo "🔧 Testing CLI availability..."
+          htty --help > /dev/null && echo "✅ htty CLI works"
+          htty-ht --version > /dev/null && echo "✅ htty-ht console script works"
+          
+          echo "🎉 Wheel testing complete!"
 
-      - name: Copy and verify wheel
+      - name: Verify wheel details
         run: |
           # Find the built wheel
           WHEEL_PATH=$(ls dist/*.whl | head -1)
           WHEEL_NAME=$(basename "$WHEEL_PATH")
           
           echo "📦 Built wheel: $WHEEL_NAME"
-          ls -lh dist/
-          
+          echo "📊 Wheel size: $(ls -lh "$WHEEL_PATH" | awk '{print $5}')"
           echo "🎯 Target system: ${{ matrix.system }}"
           echo "🔄 Build type: ${{ matrix.build_type }}"
+          
+          # Show wheel contents for debugging
+          echo "📋 Wheel contents:"
+          python -m zipfile -l "$WHEEL_PATH" | head -20
 
       - name: Upload wheel
         uses: actions/upload-artifact@v4
