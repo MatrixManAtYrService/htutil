@@ -59,9 +59,12 @@ jobs:
           
           # Get ht source from Nix input
           HT_SOURCE=$(nix eval --impure --raw --expr '(builtins.getFlake (toString ./.)).inputs.ht.outPath')
+          echo "📁 ht source: $HT_SOURCE"
           
-          # Build ht binary using standard Rust toolchain
-          cd "$HT_SOURCE"
+          # Copy source to writable directory (Nix store is read-only)
+          echo "📋 Copying source to writable directory..."
+          cp -r "$HT_SOURCE" ./ht-source
+          cd ./ht-source
           
           if [ "${{ matrix.build_type }}" = "cross-compiled" ]; then
             echo "🔀 Cross-compiling for ${{ matrix.system }}"
